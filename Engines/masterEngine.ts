@@ -1,13 +1,17 @@
 // masterEngine.ts
 // ─────────────────────────────────────────────────────────────────────────────
 // Turns cases into computed cases:
-//   for each case: every entity → its entity engine → all journal entries → COAHE
+//   for each case: its entities → their entity engines → all journal entries → COAHE
 //
-//   masterEngine({ startingAge, cases }) → { startingAge, computedCases }
+//   masterEngine({ startingAge, cases, entities }) → { startingAge, computedCases }
 //
-// A computed case is its input case with `entities` replaced by
-// `chartOfAccountsHistory`. Every other field (caseId, caseName, caseColor, …)
-// passes through untouched. Cases come out in the same order they went in.
+// Cases and entities are two separate arrays. Each entity belongs to exactly one
+// case through entity.caseId. A case's entities are the ones with its caseId, in
+// the order they appear in the entities array.
+//
+// A computed case is its input case plus chartOfAccountsHistory, investmentAccounts
+// and error. Every case field (caseId, caseName, caseColor, …) passes through
+// untouched. Cases come out in the same order they went in.
 //
 // ENTITY IDS: "TT-xxxxxxxx"
 //   TT       = 2-digit entity type code (ENTITY_TYPE_CODES), picks the engine
@@ -19,14 +23,18 @@
 //   • 4–12 = investing / existingInvestment entities, in entity order (max 9).
 //   Any account number already in an entity's inputs is overwritten.
 //
-// ERRORS: a failure only fails its own case. That case gets
-//   chartOfAccountsHistory = null and error = { entityId, message }.
+// ERRORS:
+//   • Problems linking cases and entities throw (whole call fails): cases or
+//     entities not an array, a missing / duplicate caseId, a missing / duplicate
+//     entityId, an entity whose caseId matches no case.
+//   • Anything else only fails its own case. That case gets
+//     chartOfAccountsHistory = null and error = { entityId, message }.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { coahe } from './coahe';
 import { ENGINES, INVESTMENT_ACCOUNT_MAX, checkAge } from './entityEngines';
 import type {
-  Age, Case, CaseError, ComputedCase, EngineCtx, EntityTypeKey, JournalEntry, MasterInput, MasterOutput,
+  Age, Case, CaseError, ComputedCase, EngineCtx, Entity, EntityTypeKey, JournalEntry, MasterInput, MasterOutput,
 } from '../TypesAndVariables/types';
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -71,6 +79,13 @@ export function makeEntityId(type: EntityTypeKey): string {
   return `${code}-${rand}`;
 }
 
+/** New random case ID, e.g. "case-4k9x0qzt". */
+export function makeCaseId(): string {
+  let rand = '';
+  for (let i = 0; i < 8; i++) rand += Math.floor(Math.random() * 36).toString(36);
+  return `case-${rand}`;
+}
+
 /** Entity type from its ID. Throws on a malformed ID or unknown type code. */
 export function entityTypeOf(entityId: string): EntityTypeKey {
   const match = ENTITY_ID_PATTERN.exec(entityId);
@@ -94,25 +109,49 @@ class CaseFailure extends Error {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// Linking cases and entities
+// ═════════════════════════════════════════════════════════════════════════════
+/** caseId → that case's entities, in entities-array order. Throws on any linking problem. */
+function groupEntitiesByCase(cases: Case[], entities: Entity[]): Map<string, Entity[]> {
+  if (!Array.isArray(cases)) throw new Error('[masterEngine] "cases" must be an array');
+  if (!Array.isArray(entities)) throw new Error('[masterEngine] "entities" must be an array');
+
+  const byCase = new Map<string, Entity[]>();
+  cases.forEach((c, i) => {
+    const caseId: unknown = c?.caseId;
+    if (typeof caseId !== 'string' || caseId === '') throw new Error(`[masterEngine] case ${i} needs a non-empty string "caseId"`);
+    if (byCase.has(caseId)) throw new Error(`[masterEngine] duplicate caseId "${caseId}"`);
+    byCase.set(caseId, []);
+  });
+
+  const seenEntityIds = new Set<string>();
+  entities.forEach((entity, i) => {
+    const entityId: unknown = entity?.entityId;
+    const caseId: unknown = entity?.caseId;
+    if (typeof entityId !== 'string' || entityId === '') throw new Error(`[masterEngine] entity ${i} needs a non-empty string "entityId"`);
+    if (seenEntityIds.has(entityId)) throw new Error(`[masterEngine] duplicate entityId "${entityId}"`);
+    seenEntityIds.add(entityId);
+    const caseEntities = typeof caseId === 'string' ? byCase.get(caseId) : undefined;
+    if (!caseEntities) throw new Error(`[masterEngine] entity "${entityId}" has caseId "${String(caseId)}", which matches no case`);
+    caseEntities.push(entity);
+  });
+  return byCase;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // Engine
 // ═════════════════════════════════════════════════════════════════════════════
-function computeCase<C extends Case>(c: C, startingAge: Age): ComputedCase<C> {
-  const { entities, ...passThrough } = c;
+function computeCase<C extends Case>(c: C, entities: Entity[], startingAge: Age): ComputedCase<C> {
   const investmentAccounts: Record<string, number> = {};
   try {
-    if (typeof c.caseId !== 'string' || c.caseId === '') throw new CaseFailure(null, 'case needs a non-empty string "caseId"');
-    if (!Array.isArray(entities)) throw new CaseFailure(null, 'case has no "entities" array');
     checkAge(startingAge, 'startingAge');
     const ctx: EngineCtx = { caseId: c.caseId, startAge: startingAge };
-    const seen = new Set<string>();
     let nextAccount = FIRST_INVESTMENT_ACCOUNT;
     const entries: JournalEntry[] = [];
 
     for (const entity of entities) {
-      const id = entity?.entityId;
+      const id = entity.entityId;
       try {
-        if (seen.has(id)) throw new Error(`duplicate entityId "${id}"`);
-        seen.add(id);
         const type = entityTypeOf(id);
         const inputs: Record<string, unknown> = { ...entity.inputs };
         if (INVESTMENT_TYPES.has(type)) {
@@ -125,21 +164,21 @@ function computeCase<C extends Case>(c: C, startingAge: Age): ComputedCase<C> {
         const engine = ENGINES[type] as (input: unknown, ctx: EngineCtx) => JournalEntry[];
         for (const je of engine(inputs, ctx)) entries.push(je);
       } catch (e) {
-        if (e instanceof CaseFailure) throw e;
-        throw new CaseFailure(id ?? null, (e as Error).message);
+        throw new CaseFailure(id, (e as Error).message);
       }
     }
 
-    return { ...passThrough, chartOfAccountsHistory: coahe(entries), investmentAccounts, error: null };
+    return { ...c, chartOfAccountsHistory: coahe(entries), investmentAccounts, error: null };
   } catch (e) {
     const error: CaseError = e instanceof CaseFailure
       ? { entityId: e.entityId, message: e.message }
       : { entityId: null, message: (e as Error).message };
-    return { ...passThrough, chartOfAccountsHistory: null, investmentAccounts, error };
+    return { ...c, chartOfAccountsHistory: null, investmentAccounts, error };
   }
 }
 
 export function masterEngine<C extends Case>(input: MasterInput<C>): MasterOutput<C> {
-  const { startingAge, cases } = input;
-  return { startingAge, computedCases: cases.map((c) => computeCase(c, startingAge)) };
+  const { startingAge, cases, entities } = input;
+  const byCase = groupEntitiesByCase(cases, entities);
+  return { startingAge, computedCases: cases.map((c) => computeCase(c, byCase.get(c.caseId) ?? [], startingAge)) };
 }

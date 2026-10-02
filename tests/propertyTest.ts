@@ -319,15 +319,26 @@ test('random bad values always throw', () => {
 // ═════════════════════════════════════════════════════════════════════════════
 // Random whole cases through the master engine
 // ═════════════════════════════════════════════════════════════════════════════
-function randomCase(id: string, start: Age): Case {
-  const entities: Entity[] = [{ entityId: makeEntityId('openingCash'), inputs: GENERATORS.openingCash(start) }];
+function randomCase(id: string, start: Age): { c: Case; entities: Entity[] } {
+  const entities: Entity[] = [{ entityId: makeEntityId('openingCash'), caseId: id, name: 'cash', isHidden: false, inputs: GENERATORS.openingCash(start) }];
   let investments = 0;
   for (let i = int(3, 25); i > 0; i--) {
     let type = pick(TYPES);
     if (type === 'investing' || type === 'existingInvestment') { if (investments >= 9) type = 'food'; else investments++; }
-    entities.push({ entityId: makeEntityId(type), inputs: GENERATORS[type](start) });
+    entities.push({ entityId: makeEntityId(type), caseId: id, name: type, isHidden: false, inputs: GENERATORS[type](start) });
   }
-  return { caseId: id, caseName: `Case ${id}`, caseColor: '#123456', entities };
+  return { c: { caseId: id, caseName: `Case ${id}`, caseColor: '#123456', caseIndex: 0, isHidden: false }, entities };
+}
+
+/** Randomly interleave lists into one, keeping each list's own order. */
+function interleave<T>(lists: T[][]): T[] {
+  const rest = lists.map((l) => [...l]);
+  const out: T[] = [];
+  while (rest.some((l) => l.length)) {
+    const nonEmpty = rest.filter((l) => l.length);
+    out.push(pick(nonEmpty).shift()!);
+  }
+  return out;
 }
 
 test('random cases: history is consistent', () => {
@@ -335,10 +346,13 @@ test('random cases: history is consistent', () => {
   let errors = 0, unbalanced = 0, assetNeg = 0, liabPos = 0, notLinear = 0, shuffleBad = 0, acctBad = 0, mutated = 0;
   for (let i = 0; i < CASES; i++) {
     const start = toAge(int(18 * 12, 60 * 12));
-    const cs = [randomCase(`r${i}`, start), randomCase(`s${i}`, start)];
-    const snapshot = JSON.stringify(cs);
-    const out = masterEngine(deepFreeze({ startingAge: start, cases: structuredClone(cs) }));
-    if (JSON.stringify(cs) !== snapshot) mutated++;
+    const rc = [randomCase(`r${i}`, start), randomCase(`s${i}`, start)];
+    const cs = rc.map((r) => r.c);
+    const ents = rc.map((r) => r.entities); // ents[k] = case k's entities, in order
+    const all = interleave(ents); // both cases' entities mixed in one array
+    const snapshot = JSON.stringify({ cs, all });
+    const out = masterEngine(deepFreeze({ startingAge: start, cases: structuredClone(cs), entities: structuredClone(all) }));
+    if (JSON.stringify({ cs, all }) !== snapshot) mutated++;
     for (const [k, cc] of out.computedCases.entries()) {
       if (cc.error) { errors++; if (errors <= 3) check(false, `case error: ${JSON.stringify(cc.error)}`); continue; }
       const h = cc.chartOfAccountsHistory!;
@@ -351,12 +365,12 @@ test('random cases: history is consistent', () => {
         for (const a of LIABILITIES) if (h[m * ACCOUNT_COUNT + a] > 0) liabPos++;
       }
       // Investment accounts: distinct, 4.., in entity order
-      const inv = cs[k].entities.filter((e) => /^(06|16)-/.test(e.entityId)).map((e) => cc.investmentAccounts[e.entityId]);
+      const inv = ents[k].filter((e) => /^(06|16)-/.test(e.entityId)).map((e) => cc.investmentAccounts[e.entityId]);
       if (inv.join() !== inv.map((_, j) => 4 + j).join()) acctBad++;
       // Linearity: the case history = the sum of each entity's own history (padded)
       const sum = new Float64Array(h.length);
-      for (const ent of cs[k].entities) {
-        const one = masterEngine({ startingAge: start, cases: [{ caseId: cs[k].caseId, entities: [ent] }] }).computedCases[0];
+      for (const ent of ents[k]) {
+        const one = masterEngine({ startingAge: start, cases: [cs[k]], entities: [ent] }).computedCases[0];
         const oh = one.chartOfAccountsHistory!;
         const acct = cc.investmentAccounts[ent.entityId];
         const own = one.investmentAccounts[ent.entityId];
@@ -372,10 +386,10 @@ test('random cases: history is consistent', () => {
       }
       if (sum.some((v, j) => v !== h[j])) { notLinear++; if (notLinear <= 2) check(false, `case ${cc.caseId}: not the sum of its entities`); }
       // Shuffling non-investment entities doesn't change the history
-      const invIdx = cs[k].entities.map((e, j) => (/^(06|16)-/.test(e.entityId) ? j : -1)).filter((j) => j >= 0);
-      const others = cs[k].entities.filter((_, j) => !invIdx.includes(j)).sort(() => rand() - 0.5);
-      const shuffled = [...others, ...invIdx.map((j) => cs[k].entities[j])];
-      const sh = masterEngine({ startingAge: start, cases: [{ ...cs[k], entities: shuffled }] }).computedCases[0].chartOfAccountsHistory!;
+      const invIdx = ents[k].map((e, j) => (/^(06|16)-/.test(e.entityId) ? j : -1)).filter((j) => j >= 0);
+      const others = ents[k].filter((_, j) => !invIdx.includes(j)).sort(() => rand() - 0.5);
+      const shuffled = [...others, ...invIdx.map((j) => ents[k][j])];
+      const sh = masterEngine({ startingAge: start, cases: [cs[k]], entities: shuffled }).computedCases[0].chartOfAccountsHistory!;
       if (sh.length !== h.length || sh.some((v, j) => v !== h[j])) shuffleBad++;
     }
   }

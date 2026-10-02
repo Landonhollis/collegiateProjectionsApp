@@ -1,0 +1,415 @@
+{
+  "_about": "Routing + operations map. status: built | stub | planned. Keep in sync with the code. Overview: aiContext/README.md",
+  "routes": {
+    "/": {
+      "file": "app/index.tsx",
+      "does": "Redirect → /cases",
+      "status": "built"
+    },
+    "/cases": {
+      "file": "app/(tabs)/cases.tsx",
+      "in": "(tabs)",
+      "status": "built"
+    },
+    "/entities": {
+      "file": "app/(tabs)/entities.tsx",
+      "in": "(tabs)",
+      "status": "built"
+    },
+    "/outcomes": {
+      "file": "app/(tabs)/outcomes.tsx",
+      "in": "(tabs)",
+      "status": "stub (empty state)"
+    },
+    "/settings": {
+      "file": "app/settings.tsx",
+      "in": "root Stack (slides over tabs, no tab bar)",
+      "status": "partial (Appearance built)"
+    }
+  },
+  "layouts": {
+    "app/_layout.tsx": {
+      "navigator": "Stack, headerShown false",
+      "wraps": [
+        "SafeAreaProvider",
+        "ThemeProvider",
+        "AppDataProvider"
+      ],
+      "loads": [
+        "Inter 400/500/600/700"
+      ],
+      "children": [
+        "index",
+        "(tabs)",
+        "settings"
+      ]
+    },
+    "app/(tabs)/_layout.tsx": {
+      "navigator": "expo-router/ui Tabs (headless)",
+      "renders": [
+        "TopBar",
+        "TabSlot",
+        "TabList (bottom menu)"
+      ],
+      "tabs": [
+        "/cases",
+        "/entities",
+        "/outcomes"
+      ]
+    }
+  },
+  "navigation": {
+    "TopBar → Settings": "router.push('/settings') (gear icon)",
+    "Settings → Back": "router.back()",
+    "Bottom menu buttons": "TabTrigger href (/cases, /entities, /outcomes)",
+    "Entities toolbar → type menu": "local state menuOpen (EntityTypesMenu popup)",
+    "Entities toolbar → Add": "local state editor = { entityEditType: 'add' }",
+    "EntityCard → Edit": "local state editor = { entityEditType: 'edit', entity }",
+    "Edit card → Cancel / Add / Done": "editor = null (Add/Done save first)",
+    "Cases toolbar → Add": "local state editor = { editType: 'add' } (EditCaseCard popup)",
+    "CaseCard → Edit": "local state editor = { editType: 'edit', existingCase }",
+    "Edit case → Cancel / Done": "editor = null (Done saves first)",
+    "EntityCard / CaseCard → Delete": "local state deleting → ConfirmDialog → delete on confirm",
+    "Entities empty state (no cases) → Go to cases": "router.navigate('/cases')",
+    "TopBar title": "usePathname() → Cases / Entities / Outcomes",
+    "Entities left edge → type menu": "EdgePullTab: pull / swipe from left edge or tap the tab → menuOpen = true",
+    "Type menu → close": "X, tap dimmed area, or swipe left"
+  },
+  "data": {
+    "Case": {
+      "caseId": "case-xxxxxxxx (makeCaseId on create)",
+      "caseName": "string",
+      "caseColor": "hex from CASE_COLORS",
+      "caseIndex": "number, display order (new = max + 1; gaps OK)",
+      "isHidden": "boolean",
+      "...": "any other fields"
+    },
+    "Entity": {
+      "entityId": "TT-xxxxxxxx (TT = type code)",
+      "caseId": "string (FK → Case)",
+      "name": "string",
+      "isHidden": "boolean",
+      "inputs": "per-type input object"
+    },
+    "entity type": "entityTypeOf(entityId), not stored separately",
+    "entity order": "entities array order (also sets investment accounts 4–12)"
+  },
+  "state": {
+    "AppDataContext": {
+      "file": "context/AppDataContext.tsx",
+      "hook": "useAppData()",
+      "holds": [
+        "cases: Case[]",
+        "entities: Entity[]"
+      ],
+      "storage": "AsyncStorage keys 'cases', 'entities'; loaded on app start, saved on every change",
+      "status": "built"
+    },
+    "entities screen (local)": {
+      "entityType": "EntityTypeKey (default existingHome)",
+      "menuOpen": "boolean",
+      "editor": "null | add | edit+entity"
+    },
+    "ThemeContext": {
+      "file": "context/ThemeContext.tsx",
+      "hook": "useTheme() → { mode, scheme, setMode, colors, lift }",
+      "holds": [
+        "mode: 'system' | 'light' | 'dark'"
+      ],
+      "storage": "AsyncStorage key 'themeMode'; loaded on app start, saved on change; default system",
+      "status": "built"
+    },
+    "cases screen (local)": {
+      "editor": "null | add | edit+existingCase"
+    }
+  },
+  "operations": {
+    "saveEntity(entity)": {
+      "where": "AppDataContext",
+      "does": "add, or replace same entityId in place",
+      "status": "built"
+    },
+    "deleteEntity(entityId)": {
+      "where": "AppDataContext",
+      "does": "remove; throws if not found",
+      "status": "built"
+    },
+    "toggleEntityHidden(entityId)": {
+      "where": "AppDataContext",
+      "does": "flip isHidden; throws if not found",
+      "status": "built"
+    },
+    "setCases(cases) / setEntities(entities)": {
+      "where": "AppDataContext",
+      "does": "replace array + save",
+      "status": "built"
+    },
+    "makeEntityId(type)": {
+      "where": "Engines/masterEngine.ts",
+      "status": "built"
+    },
+    "entityTypeOf(entityId)": {
+      "where": "Engines/masterEngine.ts",
+      "status": "built"
+    },
+    "masterEngine({ startingAge, cases, entities })": {
+      "where": "Engines/masterEngine.ts",
+      "returns": "{ startingAge, computedCases }",
+      "status": "built"
+    },
+    "reorderEntities(from, to)": {
+      "trigger": "EntityCard grip drag",
+      "status": "planned (grip lift animation built)"
+    },
+    "startingAge storage": {
+      "status": "planned (age vs birthday undecided)"
+    },
+    "run projections for outcomes": {
+      "status": "planned"
+    },
+    "isHidden effect on projections": {
+      "status": "undecided (entities and cases)"
+    },
+    "setMode(mode)": {
+      "where": "ThemeContext",
+      "trigger": "Settings → Appearance",
+      "status": "built"
+    },
+    "saveCase(case)": {
+      "where": "AppDataContext",
+      "does": "add, or replace same caseId",
+      "status": "built"
+    },
+    "deleteCase(caseId)": {
+      "where": "AppDataContext",
+      "does": "remove case AND its entities; throws if not found",
+      "status": "built"
+    },
+    "toggleCaseHidden(caseId)": {
+      "where": "AppDataContext",
+      "does": "flip isHidden; throws if not found",
+      "status": "built"
+    },
+    "makeCaseId()": {
+      "where": "Engines/masterEngine.ts",
+      "status": "built"
+    },
+    "reorderCases(from, to)": {
+      "trigger": "CaseCard grip drag; rewrites caseIndex",
+      "status": "planned (grip lift animation built)"
+    }
+  },
+  "components": {
+    "TopBar": {
+      "file": "components/TopBar.tsx",
+      "does": "large section title (from pathname) + settings button",
+      "calls": [
+        "router.push('/settings')"
+      ],
+      "status": "built"
+    },
+    "TabButton": {
+      "file": "components/TabButton.tsx",
+      "props": [
+        "label",
+        "icon",
+        "activeIcon",
+        "isFocused (from TabTrigger)"
+      ],
+      "status": "built",
+      "notes": "ignores TabTrigger's default row style; lays itself out as icon over label"
+    },
+    "EntityCard": {
+      "file": "components/entityCard.tsx",
+      "props": [
+        "entityName",
+        "entityType",
+        "caseName",
+        "caseColor",
+        "isHidden",
+        "onDelete",
+        "onToggleHidden",
+        "onEdit"
+      ],
+      "layout": "square; name up to 2 lines; type, case below; bottom 1/4: trash, hide, edit (left 3/4) + grip (right)",
+      "status": "built (drag planned)"
+    },
+    "EntityTypesMenu": {
+      "file": "components/entityTypesMenu.tsx",
+      "props": [
+        "visible",
+        "selected",
+        "onSelect",
+        "onClose"
+      ],
+      "does": "left slide-in list of 23 types with counts",
+      "status": "built"
+    },
+    "EditEntityCard (frame)": {
+      "file": "components/editEntityCard.tsx",
+      "props": [
+        "entityEditType",
+        "typeLabel",
+        "entityName",
+        "onChangeEntityName",
+        "caseId",
+        "onChangeCaseId",
+        "canSubmit",
+        "onCancel",
+        "onSubmit",
+        "children"
+      ],
+      "does": "popup sheet: name, case dropdown, type inputs, Cancel + Add/Done",
+      "status": "built"
+    },
+    "formFields": {
+      "file": "components/formFields.tsx",
+      "exports": [
+        "Field",
+        "TextField",
+        "NumberField (kind: dollars | percent | years | number)",
+        "AgeField",
+        "CaseDropdown",
+        "ColorDropdown",
+        "Segmented",
+        "fieldError",
+        "ERRORS",
+        "parseDollars",
+        "parsePercent",
+        "parseWhole",
+        "parseOptionalAge",
+        "readNumberText",
+        "readDollarsText",
+        "readAgeText",
+        "formatDollars"
+      ],
+      "status": "built"
+    },
+    "edit cards per type": {
+      "registry": "components/(editEntityCards)/index.ts → EDIT_ENTITY_CARDS",
+      "props": "EditEntityCardProps (types.ts)",
+      "built": [
+        "openingCash → editExistingCashCard.tsx",
+        "existingHome → editExistingHomeCard.tsx"
+      ],
+      "planned": [
+        "existingVehicle",
+        "existingCreditCard",
+        "existingStudentLoans",
+        "existingInvestment",
+        "otherExistingAsset",
+        "otherExistingLoan",
+        "income",
+        "renting",
+        "buyingHome",
+        "buyingCar",
+        "gas",
+        "kid",
+        "education",
+        "investing",
+        "food",
+        "healthInsurance",
+        "pet",
+        "personal",
+        "birthdayChristmas",
+        "oneTimeExpense",
+        "recurringPayment"
+      ]
+    },
+    "CaseCard": {
+      "file": "components/caseCard.tsx",
+      "props": [
+        "caseName",
+        "caseColor",
+        "isHidden",
+        "entityCount",
+        "onDelete",
+        "onToggleHidden",
+        "onEdit"
+      ],
+      "layout": "full width; left color bar; name, color, trash/hide/edit; grip on right (lift 3%)",
+      "status": "built (drag planned)"
+    },
+    "EditCaseCard": {
+      "file": "components/editCaseCard.tsx",
+      "props": [
+        "editType: 'add' | 'edit'",
+        "existingCase (edit)",
+        "onClose"
+      ],
+      "layout": "centered landscape popup: 'New case' / 'Edit case', name + color dropdown side by side, Cancel + Done",
+      "status": "built"
+    },
+    "cardControls": {
+      "file": "components/cardControls.tsx",
+      "exports": [
+        "ActionWell",
+        "GripHandle"
+      ],
+      "used by": [
+        "EntityCard",
+        "CaseCard"
+      ],
+      "notes": "ActionWell: filled well + lift; activeColor = hidden outline/tint; opensCard = trailing chevron. GripHandle: hold 120ms to pick up (haptic).",
+      "status": "built"
+    },
+    "ConfirmDialog": {
+      "file": "components/confirmDialog.tsx",
+      "props": [
+        "title",
+        "message",
+        "confirmLabel",
+        "onConfirm",
+        "onCancel"
+      ],
+      "used for": [
+        "delete entity",
+        "delete case (says how many entities go with it)"
+      ],
+      "status": "built"
+    },
+    "screenParts": {
+      "file": "components/screenParts.tsx",
+      "exports": [
+        "AddButton",
+        "EmptyState"
+      ],
+      "status": "built"
+    },
+    "EdgePullTab": {
+      "file": "components/edgePullTab.tsx",
+      "props": [
+        "onOpen",
+        "label"
+      ],
+      "does": "left-edge tab with arrow; follows finger, opens past 40px / fast flick / tap",
+      "used by": [
+        "entities screen"
+      ],
+      "status": "built"
+    }
+  },
+  "design": {
+    "source": "../ColorsGuide.md, ../FontsGuide.md",
+    "palettes": "components/theme.ts (light + dark hex; the only place color values live)",
+    "how": "tailwind.config.js colors = rgb(var(--token)); ThemeProvider sets the vars on the root View → every class switches with the theme",
+    "tokens": "canvas, surface, inset, hairline, edge, slate, charcoal, ink, muted, onDark, onAccent, danger, accent{DEFAULT,tint,ink}",
+    "non-class colors": "useTheme().colors (icons, placeholders)",
+    "lift": "useTheme().lift (light: shadow; dark: 1px light top edge)",
+    "accent": "sky (change in components/theme.ts)",
+    "fonts": "font-inter, font-inter-medium, font-inter-semibold, font-inter-bold",
+    "icons": "@expo/vector-icons Ionicons",
+    "case colors": "CASE_COLORS in components/theme.ts (the 11 accent bases)",
+    "reference": "design reference pasted by the user (EntityCard / EditEntityCard / theme): adopted as look, not code",
+    "rules": [
+      "entity tiles outlined (1.5px edge); case cards filled + lift",
+      "pressables: lift + active:opacity feedback; ones that open something get a chevron",
+      "inputs: filled inset, h-14, rounded-2xl; accent outline on focus; danger outline + error text when invalid",
+      "edit entity sheet: one slate header block; footer Cancel (outlined) + primary (accent, wider, chevron)",
+      "hidden = faded text + case-color outline/tint on the hide button",
+      "destructive actions confirm first (ConfirmDialog)",
+      "haptics: grip pick-up, hide toggle, delete confirm"
+    ],
+    "haptics": "expo-haptics"
+  }
+}

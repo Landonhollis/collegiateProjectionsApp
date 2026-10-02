@@ -256,18 +256,42 @@ export type EntityInputs = {
 export type EntityTypeKey = keyof EntityInputs;
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Cases (app ↔ master engine)
+// Cases and entities (app storage ↔ master engine)
 // ═════════════════════════════════════════════════════════════════════════════
+// Stored as two separate arrays. Each entity belongs to exactly one case: entity.caseId → case.caseId.
+// A case's entities are the ones with its caseId, in the order they appear in the entities array.
 /** entityId = "TT-xxxxxxxx" (type code + 8 random base-36 chars); see masterEngine.ts. */
-export type Entity = { entityId: string; inputs: Record<string, unknown> };
-export type Case = { caseId: string; entities: Entity[]; [field: string]: unknown };
-export type MasterInput<C extends Case = Case> = { startingAge: Age; cases: C[] };
+export type Entity = {
+  entityId: string;
+  caseId: string;
+  name: string; // shown on the entity card; the engines ignore it
+  isHidden: boolean; // UI flag; the engines ignore it
+  inputs: Record<string, unknown>;
+};
+export type Case = {
+  caseId: string;
+  caseName: string;
+  caseColor: string; // hex
+  caseIndex: number; // display order on the cases screen (0 = first)
+  isHidden: boolean; // UI flag; the engines ignore it
+  [field: string]: unknown;
+};
+export type MasterInput<C extends Case = Case> = { startingAge: Age; cases: C[]; entities: Entity[] };
 
 export type CaseError = { entityId: string | null; message: string }; // null = not tied to one entity
-/** The input case with `entities` replaced by the history; every other field passes through. */
-export type ComputedCase<C extends Case = Case> = Omit<C, 'entities'> & {
+/** The input case plus its results; every case field passes through. */
+export type ComputedCase<C extends Case = Case> = C & {
   chartOfAccountsHistory: ChartOfAccountsHistory | null; // null when error is set
   investmentAccounts: Record<string, number>; // entityId → account (4–12)
   error: CaseError | null;
 };
 export type MasterOutput<C extends Case = Case> = { startingAge: Age; computedCases: ComputedCase<C>[] };
+
+// ═════════════════════════════════════════════════════════════════════════════
+// UI: edit entity cards
+// ═════════════════════════════════════════════════════════════════════════════
+export type EntityEditType = 'add' | 'edit';
+/** Props every edit entity card takes. 'edit' comes with the entity being edited. */
+export type EditEntityCardProps =
+  | { entityEditType: 'add'; entity?: undefined; onClose: () => void }
+  | { entityEditType: 'edit'; entity: Entity; onClose: () => void };

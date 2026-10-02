@@ -2,10 +2,11 @@
   "expo": {
     "name": "CollegiateProjections",
     "slug": "collegiate-projections",
+    "scheme": "collegiateprojections",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.landonhollis.collegiateprojections",
@@ -30,6 +31,10 @@
         "projectId": "94d3c477-e6df-4054-89a1-3f9ec173e6d3"
       }
     },
-    "owner": "landonhollis"
+    "owner": "landonhollis",
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ]
   }
 }
