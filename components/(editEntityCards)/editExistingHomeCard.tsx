@@ -1,152 +1,28 @@
-import { useState } from "react";
 import EditEntityCard from "../editEntityCard";
-import {
-  AgeField,
-  ERRORS,
-  NumberField,
-  fieldError,
-  parseDollars,
-  parseOptionalAge,
-  parsePercent,
-  parseWhole,
-  readAgeText,
-  readDollarsText,
-  readNumberText,
-} from "../formFields";
-import { useAppData } from "../../context/AppDataContext";
-import { makeEntityId } from "../../Engines/masterEngine";
-import { ENTITY_TYPE_LABELS } from "../../TypesAndVariables/entityTypeLabels";
-import type { EditEntityCardProps, ExistingHomeInput } from "../../TypesAndVariables/types";
+import { useEntityCard } from "./useEntityCard";
+import type { EditEntityCardProps } from "../../TypesAndVariables/types";
+import { AgeField, ERRORS, NumberField, isBefore } from "../formFields";
+import { existingHomeForm } from "./entityForms";
 
 // Edit card for the existingHome entity type: a home you already own.
+// The engine rebuilds the mortgage from these and works out property tax, insurance, upkeep and utilities itself.
 export default function EditExistingHomeCard(props: EditEntityCardProps) {
-  const { saveEntity } = useAppData();
-  const saved = props.entity?.inputs;
-  const [name, setName] = useState(props.entity?.name ?? "");
-  const [caseId, setCaseId] = useState<string | null>(props.entity?.caseId ?? null);
-  const [price, setPrice] = useState(readDollarsText(saved?.totalPropertyValue));
-  const [downPct, setDownPct] = useState(readNumberText(saved?.downPaymentPct));
-  const [termYears, setTermYears] = useState(readNumberText(saved?.mortgageTermYears));
-  const [ratePct, setRatePct] = useState(readNumberText(saved?.interestRatePct));
-  const [remaining, setRemaining] = useState(readDollarsText(saved?.remainingBalance));
-  const [purchaseAge, setPurchaseAge] = useState(readAgeText(saved?.purchaseAge));
-  const [sellAge, setSellAge] = useState(readAgeText(saved?.sellAge));
-
-  // null = not valid yet; for the optional ages, null = not given and undefined = not valid
-  const v = {
-    price: parseDollars(price),
-    downPct: parsePercent(downPct),
-    termYears: parseWhole(termYears, 1),
-    ratePct: parsePercent(ratePct),
-    remaining: parseDollars(remaining),
-    purchaseAge: parseOptionalAge(purchaseAge),
-    sellAge: parseOptionalAge(sellAge),
-  };
-  const canSubmit =
-    name.trim() !== "" &&
-    caseId !== null &&
-    v.price !== null &&
-    v.downPct !== null &&
-    v.termYears !== null &&
-    v.ratePct !== null &&
-    v.remaining !== null &&
-    v.purchaseAge !== undefined &&
-    v.sellAge !== undefined;
-
-  function submit() {
-    if (
-      caseId === null ||
-      v.price === null ||
-      v.downPct === null ||
-      v.termYears === null ||
-      v.ratePct === null ||
-      v.remaining === null ||
-      v.purchaseAge === undefined ||
-      v.sellAge === undefined
-    ) {
-      throw new Error("EditExistingHomeCard: submit while invalid");
-    }
-    const inputs: ExistingHomeInput = {
-      totalPropertyValue: v.price,
-      downPaymentPct: v.downPct,
-      mortgageTermYears: v.termYears,
-      interestRatePct: v.ratePct,
-      remainingBalance: v.remaining,
-      purchaseAge: v.purchaseAge,
-      sellAge: v.sellAge,
-    };
-    saveEntity({
-      entityId: props.entity?.entityId ?? makeEntityId("existingHome"),
-      caseId,
-      name: name.trim(),
-      isHidden: props.entity?.isHidden ?? false,
-      inputs,
-    });
-    props.onClose();
-  }
-
+  const card = useEntityCard(props, "existingHome", existingHomeForm);
+  const { text: t, set } = card;
   return (
-    <EditEntityCard
-      entityEditType={props.entityEditType}
-      typeLabel={ENTITY_TYPE_LABELS.existingHome}
-      entityName={name}
-      onChangeEntityName={setName}
-      caseId={caseId}
-      onChangeCaseId={setCaseId}
-      canSubmit={canSubmit}
-      onCancel={props.onClose}
-      onSubmit={submit}
-    >
-      <NumberField
-        label="Purchase price"
-        hint="what you paid"
-        kind="dollars"
-        value={price}
-        onChange={setPrice}
-        error={fieldError(price, v.price, ERRORS.dollars)}
-      />
-      <NumberField
-        label="Down payment"
-        kind="percent"
-        value={downPct}
-        onChange={setDownPct}
-        error={fieldError(downPct, v.downPct, ERRORS.percent)}
-      />
-      <NumberField
-        label="Mortgage term"
-        kind="years"
-        value={termYears}
-        onChange={setTermYears}
-        error={fieldError(termYears, v.termYears, ERRORS.years)}
-      />
-      <NumberField
-        label="Interest rate"
-        kind="percent"
-        value={ratePct}
-        onChange={setRatePct}
-        error={fieldError(ratePct, v.ratePct, ERRORS.percent)}
-      />
-      <NumberField
-        label="Remaining balance"
-        hint="0 = paid off"
-        kind="dollars"
-        value={remaining}
-        onChange={setRemaining}
-        error={fieldError(remaining, v.remaining, ERRORS.dollars)}
-      />
-      <AgeField
-        label="Age you bought it"
-        hint="optional"
-        value={purchaseAge}
-        onChange={setPurchaseAge}
-        error={v.purchaseAge === undefined ? ERRORS.age : null}
-      />
+    <EditEntityCard {...card.frame}>
+      <NumberField label="Purchase price" hint="what you paid" kind="dollars" value={t.price} onChange={set("price")} />
+      <NumberField label="Down payment" kind="percent" value={t.downPct} onChange={set("downPct")} />
+      <NumberField label="Mortgage term" kind="years" value={t.termYears} onChange={set("termYears")} />
+      <NumberField label="Interest rate" kind="percent" value={t.ratePct} onChange={set("ratePct")} />
+      <NumberField label="Remaining balance" hint="0 = paid off" kind="dollars" value={t.remaining} onChange={set("remaining")} />
+      <AgeField label="Age you bought it" hint="optional" value={t.purchaseAge} onChange={set("purchaseAge")} />
       <AgeField
         label="Age you'll sell it"
         hint="optional"
-        value={sellAge}
-        onChange={setSellAge}
-        error={v.sellAge === undefined ? ERRORS.age : null}
+        value={t.sellAge}
+        onChange={set("sellAge")}
+        error={isBefore(t.sellAge, t.purchaseAge) ? ERRORS.sellBeforeBuy : undefined}
       />
     </EditEntityCard>
   );

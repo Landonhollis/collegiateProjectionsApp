@@ -271,7 +271,7 @@ test('income', () => {
   check(e2[e2.length - 1].month === 960, 'retirement growth runs to endMonth');
 
   const e3 = ENGINES.income({ salary: 400_000, raisePct: 0, filingStatus: 'single', retirementContributionPct: 10, retirementAccount: 6, endAge: age(23) }, c);
-  const deposits = e3.filter((x) => x.month <= 12).reduce((s, x) => s + (x.lineEntries.find((l) => l.account === 6)?.amount ?? 0), 0) - balanceAt(e3, ACCT.INVESTMENT_GAINS, 12) * -1;
+  const deposits = e3.filter((x) => x.month <= 12).reduce((s, x) => s + (x.lineEntries.find((l) => l.account === 6)?.amount ?? 0), 0) - balanceAt(e3, ACCT.RETIREMENT_GAINS, 12) * -1;
   check(approx(deposits, 24_500, 1), `401k capped at 24,500 (got ${deposits})`);
 });
 

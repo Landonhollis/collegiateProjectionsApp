@@ -1,64 +1,115 @@
 import { useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppData } from "../../context/AppDataContext";
+import { bottomMenuSpace } from "../../components/TabButton";
+import { useTheme } from "../../context/ThemeContext";
 import CaseCard from "../../components/caseCard";
+import CaseEntitiesPanel, { CASE_PANEL_OVERLAP } from "../../components/caseEntitiesPanel";
+import ReorderableGrid from "../../components/reorderableGrid";
 import EditCaseCard from "../../components/editCaseCard";
+import EditStartingAgeCard from "../../components/editStartingAgeCard";
 import ConfirmDialog from "../../components/confirmDialog";
-import { AddButton, EmptyState } from "../../components/screenParts";
+import { EmptyState, FLOATING_ROW_SPACE, FloatingRow } from "../../components/screenParts";
+import { ageLabel } from "../../components/formParsing";
 import type { Case } from "../../TypesAndVariables/types";
 
 /** What the edit case popup is showing, or null when it's closed. */
 type Editor = { editType: "add" } | { editType: "edit"; existingCase: Case } | null;
 
-// Cases tab: a list of full-width case cards in caseIndex order. Add / Edit open the edit case popup;
+// Cases tab: a list of full-width case cards in caseIndex order. Drag a card by its grip to reorder.
+// A row floats over the top of the list: the plus (new case) and the starting age (shared by every case; tap to change it).
+// Tapping a card shows that case's entities under it (one case at a time; tap it again to put them away).
+// The plus / Edit open the edit case popup;
 // Delete asks first (it also deletes the case's entities).
 export default function CasesScreen() {
-  const { cases, entities, deleteCase, toggleCaseHidden } = useAppData();
+  const { cases, entities, startingAge, deleteCase, toggleCaseHidden, reorderCases } = useAppData();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [editor, setEditor] = useState<Editor>(null);
   const [deleting, setDeleting] = useState<Case | null>(null);
+  const [editingAge, setEditingAge] = useState(false);
+  // The one case whose entities are showing under its card. Tapping another case's card moves it there; tapping it again closes it.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const sorted = [...cases].sort((a, b) => a.caseIndex - b.caseIndex);
   const entityCount = (caseId: string) => entities.filter((e) => e.caseId === caseId).length;
   const deletingCount = deleting ? entityCount(deleting.caseId) : 0;
+  const expandedCase = sorted.find((c) => c.caseId === expandedId); // undefined when none is open (or it was deleted)
 
   return (
     <View className="flex-1 bg-canvas">
-      {/* Toolbar: count on the left, Add on the right */}
-      <View className="flex-row items-center px-4 pb-2 pt-4">
-        <Text className="flex-1 font-inter-semibold text-[15px] text-muted">
-          {cases.length} {cases.length === 1 ? "case" : "cases"}
-        </Text>
-        <AddButton label="New case" onPress={() => setEditor({ editType: "add" })} />
+      {/* The list fills this whole area; the starting age floats over its top. */}
+      <View className="flex-1">
+        <ReorderableGrid
+          data={sorted}
+          keyOf={(c) => c.caseId}
+          columns={1}
+          gap={12}
+          paddingTop={FLOATING_ROW_SPACE}
+          paddingBottom={bottomMenuSpace(insets.bottom)}
+          paddingHorizontal={16}
+          onReorder={reorderCases}
+          expanded={
+            expandedCase
+              ? {
+                  key: expandedCase.caseId,
+                  overlap: CASE_PANEL_OVERLAP,
+                  content: (
+                    <CaseEntitiesPanel
+                      caseColor={expandedCase.caseColor}
+                      entities={entities.filter((e) => e.caseId === expandedCase.caseId)}
+                    />
+                  ),
+                }
+              : null
+          }
+          renderItem={(item, drag) => (
+            <CaseCard
+              caseName={item.caseName}
+              caseColor={item.caseColor}
+              isHidden={item.isHidden}
+              entityCount={entityCount(item.caseId)}
+              isExpanded={item.caseId === expandedId}
+              onToggleExpanded={() => setExpandedId(item.caseId === expandedId ? null : item.caseId)}
+              onDelete={() => setDeleting(item)}
+              onToggleHidden={() => {
+                Haptics.selectionAsync();
+                toggleCaseHidden(item.caseId);
+              }}
+              onEdit={() => setEditor({ editType: "edit", existingCase: item })}
+              {...drag}
+            />
+          )}
+          empty={
+            <EmptyState
+              icon="folder-open-outline"
+              title="No cases yet"
+              message="A case is one version of your future, like “Buy a house at 30” or “Keep renting.”"
+              action={{ label: "Make your first case", onPress: () => setEditor({ editType: "add" }) }}
+            />
+          }
+        />
+
+        {/* Floats so the cards scroll under it: the plus (new case), then the starting age (tap to change it). */}
+        <FloatingRow
+          onAdd={() => setEditor({ editType: "add" })}
+          addLabel="New case"
+          onPressBar={() => setEditingAge(true)}
+          barLabel={`Starting age: ${ageLabel(startingAge)}. Change`}
+        >
+          <Ionicons name="person-outline" size={19} color={colors.ink} />
+          <Text className="ml-2.5 flex-1 font-inter-semibold text-base text-ink" numberOfLines={1}>
+            Starting age
+          </Text>
+          <Text className="mr-1.5 font-inter-semibold text-sm text-muted">{ageLabel(startingAge)}</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+        </FloatingRow>
       </View>
 
-      <FlatList
-        data={sorted}
-        keyExtractor={(c) => c.caseId}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24, gap: 12 }}
-        renderItem={({ item }) => (
-          <CaseCard
-            caseName={item.caseName}
-            caseColor={item.caseColor}
-            isHidden={item.isHidden}
-            entityCount={entityCount(item.caseId)}
-            onDelete={() => setDeleting(item)}
-            onToggleHidden={() => {
-              Haptics.selectionAsync();
-              toggleCaseHidden(item.caseId);
-            }}
-            onEdit={() => setEditor({ editType: "edit", existingCase: item })}
-          />
-        )}
-        ListEmptyComponent={
-          <EmptyState
-            icon="folder-open-outline"
-            title="No cases yet"
-            message="A case is one version of your future, like “Buy a house at 30” or “Keep renting.”"
-            action={{ label: "Make your first case", onPress: () => setEditor({ editType: "add" }) }}
-          />
-        }
-      />
+      {editingAge ? <EditStartingAgeCard onClose={() => setEditingAge(false)} /> : null}
 
       {editor ? (
         editor.editType === "add" ? (

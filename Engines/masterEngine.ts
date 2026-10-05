@@ -13,6 +13,12 @@
 // and error. Every case field (caseId, caseName, caseColor, …) passes through
 // untouched. Cases come out in the same order they went in.
 //
+// HIDDEN (isHidden):
+//   • A hidden case is left out completely: it is not computed and has no computed case.
+//   • A hidden entity is skipped as if it didn't exist: its engine doesn't run (so its
+//     inputs aren't checked) and it takes no investment account.
+//   Hidden cases and entities are still linked and checked like any other (IDs, caseId).
+//
 // ENTITY IDS: "TT-xxxxxxxx"
 //   TT       = 2-digit entity type code (ENTITY_TYPE_CODES), picks the engine
 //   xxxxxxxx = 8 random base-36 characters
@@ -26,7 +32,8 @@
 // ERRORS:
 //   • Problems linking cases and entities throw (whole call fails): cases or
 //     entities not an array, a missing / duplicate caseId, a missing / duplicate
-//     entityId, an entity whose caseId matches no case.
+//     entityId, an entity whose caseId matches no case, an isHidden that isn't
+//     true / false.
 //   • Anything else only fails its own case. That case gets
 //     chartOfAccountsHistory = null and error = { entityId, message }.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -121,6 +128,7 @@ function groupEntitiesByCase(cases: Case[], entities: Entity[]): Map<string, Ent
     const caseId: unknown = c?.caseId;
     if (typeof caseId !== 'string' || caseId === '') throw new Error(`[masterEngine] case ${i} needs a non-empty string "caseId"`);
     if (byCase.has(caseId)) throw new Error(`[masterEngine] duplicate caseId "${caseId}"`);
+    if (typeof c.isHidden !== 'boolean') throw new Error(`[masterEngine] case "${caseId}" needs "isHidden" to be true or false`);
     byCase.set(caseId, []);
   });
 
@@ -131,6 +139,7 @@ function groupEntitiesByCase(cases: Case[], entities: Entity[]): Map<string, Ent
     if (typeof entityId !== 'string' || entityId === '') throw new Error(`[masterEngine] entity ${i} needs a non-empty string "entityId"`);
     if (seenEntityIds.has(entityId)) throw new Error(`[masterEngine] duplicate entityId "${entityId}"`);
     seenEntityIds.add(entityId);
+    if (typeof entity.isHidden !== 'boolean') throw new Error(`[masterEngine] entity "${entityId}" needs "isHidden" to be true or false`);
     const caseEntities = typeof caseId === 'string' ? byCase.get(caseId) : undefined;
     if (!caseEntities) throw new Error(`[masterEngine] entity "${entityId}" has caseId "${String(caseId)}", which matches no case`);
     caseEntities.push(entity);
@@ -150,6 +159,7 @@ function computeCase<C extends Case>(c: C, entities: Entity[], startingAge: Age)
     const entries: JournalEntry[] = [];
 
     for (const entity of entities) {
+      if (entity.isHidden) continue; // hidden: as if it didn't exist
       const id = entity.entityId;
       try {
         const type = entityTypeOf(id);
@@ -180,5 +190,6 @@ function computeCase<C extends Case>(c: C, entities: Entity[], startingAge: Age)
 export function masterEngine<C extends Case>(input: MasterInput<C>): MasterOutput<C> {
   const { startingAge, cases, entities } = input;
   const byCase = groupEntitiesByCase(cases, entities);
-  return { startingAge, computedCases: cases.map((c) => computeCase(c, byCase.get(c.caseId) ?? [], startingAge)) };
+  const shownCases = cases.filter((c) => !c.isHidden); // hidden cases are left out completely
+  return { startingAge, computedCases: shownCases.map((c) => computeCase(c, byCase.get(c.caseId) ?? [], startingAge)) };
 }

@@ -265,7 +265,7 @@ export type Entity = {
   entityId: string;
   caseId: string;
   name: string; // shown on the entity card; the engines ignore it
-  isHidden: boolean; // UI flag; the engines ignore it
+  isHidden: boolean; // true = the engines skip this entity as if it didn't exist
   inputs: Record<string, unknown>;
 };
 export type Case = {
@@ -273,7 +273,7 @@ export type Case = {
   caseName: string;
   caseColor: string; // hex
   caseIndex: number; // display order on the cases screen (0 = first)
-  isHidden: boolean; // UI flag; the engines ignore it
+  isHidden: boolean; // true = the engines leave this case out completely (no computed case)
   [field: string]: unknown;
 };
 export type MasterInput<C extends Case = Case> = { startingAge: Age; cases: C[]; entities: Entity[] };
@@ -285,7 +285,22 @@ export type ComputedCase<C extends Case = Case> = C & {
   investmentAccounts: Record<string, number>; // entityId → account (4–12)
   error: CaseError | null;
 };
+/** computedCases has one entry per case that isn't hidden, in cases-array order. */
 export type MasterOutput<C extends Case = Case> = { startingAge: Age; computedCases: ComputedCase<C>[] };
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Outcomes (what the outcomes screen can show; worked out from a history in Engines/outcomes.ts)
+// ═════════════════════════════════════════════════════════════════════════════
+export type OutcomeKey =
+  | 'netWorth'
+  | 'expensesPerMonth'
+  | 'liquidCash'
+  | 'liquidCashPlusInvestments'
+  | 'incomePerMonth'
+  | 'incomePlusGainsPerMonth'
+  | 'incomePlusAllGainsPerMonth';
+/** One number per month: series[month]. Whole dollars. */
+export type OutcomeSeries = Float64Array;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // UI: edit entity cards

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { View, useColorScheme, type ViewStyle } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
-import { LIFTS, PALETTES, themeVars, type Palette, type Scheme } from "../components/theme";
+import { CASE_BORDER_WIDTHS, LIFTS, PALETTES, themeVars, type Palette, type Scheme } from "../components/theme";
 
 // Light / dark mode for the whole app. The user's choice is saved on the phone (like cases and entities)
 // and loaded on app start. "system" follows the phone's setting.
@@ -17,6 +17,7 @@ type Theme = {
   setMode: (mode: ThemeMode) => void;
   colors: Palette; // hex values for icons / placeholders (classes switch on their own)
   lift: ViewStyle; // pressable lift for the current scheme
+  caseBorderWidth: number; // thickness of an outline in a case color (thicker in light mode)
 };
 
 const ThemeContext = createContext<Theme | null>(null);
@@ -54,7 +55,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const scheme: Scheme = mode === "system" ? (system === "dark" ? "dark" : "light") : mode;
 
   return (
-    <ThemeContext.Provider value={{ mode, scheme, setMode, colors: PALETTES[scheme], lift: LIFTS[scheme] }}>
+    <ThemeContext.Provider
+      value={{ mode, scheme, setMode, colors: PALETTES[scheme], lift: LIFTS[scheme], caseBorderWidth: CASE_BORDER_WIDTHS[scheme] }}
+    >
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       <View style={[{ flex: 1 }, themeVars[scheme]]}>{children}</View>
     </ThemeContext.Provider>

@@ -19,7 +19,7 @@
     "/outcomes": {
       "file": "app/(tabs)/outcomes.tsx",
       "in": "(tabs)",
-      "status": "stub (empty state)"
+      "status": "built (menu, chart, numbers at the selected age)"
     },
     "/settings": {
       "file": "app/settings.tsx",
@@ -47,9 +47,12 @@
     "app/(tabs)/_layout.tsx": {
       "navigator": "expo-router/ui Tabs (headless)",
       "renders": [
-        "TopBar",
-        "TabSlot",
-        "TabList (bottom menu)"
+        "EntityMenuProvider",
+        "TabPagerProvider",
+        "TopBar (one, shared; shows the current tab's title)",
+        "pager: horizontal paging ScrollView holding CasesScreen, EntitiesScreen, OutcomesScreen (no TabSlot)",
+        "EntityTypesMenu (only on the entities tab, drawn last)",
+        "TabList (bottom menu) + the accent marker above the current tab's icon (slides with the pager's scrollX)"
       ],
       "tabs": [
         "/cases",
@@ -61,19 +64,25 @@
   "navigation": {
     "TopBar → Settings": "router.push('/settings') (gear icon)",
     "Settings → Back": "router.back()",
-    "Bottom menu buttons": "TabTrigger href (/cases, /entities, /outcomes)",
-    "Entities toolbar → type menu": "local state menuOpen (EntityTypesMenu popup)",
-    "Entities toolbar → Add": "local state editor = { entityEditType: 'add' }",
-    "EntityCard → Edit": "local state editor = { entityEditType: 'edit', entity }",
-    "Edit card → Cancel / Add / Done": "editor = null (Add/Done save first)",
-    "Cases toolbar → Add": "local state editor = { editType: 'add' } (EditCaseCard popup)",
-    "CaseCard → Edit": "local state editor = { editType: 'edit', existingCase }",
-    "Edit case → Cancel / Done": "editor = null (Done saves first)",
+    "Bottom menu buttons": "TabTrigger href (/cases, /entities, /outcomes); (tabs)/_layout sees the route change and slides the pager to that tab",
+    "Swipe left / right on a tab screen": "the pager follows the finger; past halfway, (tabs)/_layout shows that tab's bars and calls router.navigate(its href). Order: cases, entities, outcomes. Off while a card is being dragged (TabPagerContext.swipeLocked)",
+    "Entities floating type picker → type menu": "EntityMenuContext.setMenuOpen(true) (EntityTypesMenu, drawn by (tabs)/_layout)",
+    "Entities floating row plus → Add": "one-type group: editor = { entityEditType: 'add', type }; Housing: addMenuOpen (AddOptionsMenu) → pick → editor",
+    "EntityCard → Edit (button, or hold the card)": "local state editor = { entityEditType: 'edit', entity }",
+    "Edit card → Cancel / tap outside / Add / Done": "editor = null (Add/Done save first)",
+    "Cases floating row plus → Add": "local state editor = { editType: 'add' } (EditCaseCard popup)",
+    "CaseCard → Edit (button, or hold the card)": "local state editor = { editType: 'edit', existingCase }",
+    "Edit case → Cancel / tap outside / Done": "editor = null (Done saves first)",
     "EntityCard / CaseCard → Delete": "local state deleting → ConfirmDialog → delete on confirm",
     "Entities empty state (no cases) → Go to cases": "router.navigate('/cases')",
-    "TopBar title": "usePathname() → Cases / Entities / Outcomes",
-    "Entities left edge → type menu": "EdgePullTab: pull / swipe from left edge or tap the tab → menuOpen = true",
-    "Type menu → close": "X, tap dimmed area, or swipe left"
+    "TopBar title": "set by (tabs)/_layout from the tab that's showing",
+    "Entities left edge → type menu": "the menu's own tab: pull it / swipe from the left edge (drags the real panel) or tap it → EntityMenuContext.menuOpen",
+    "Type menu → close": "swipe left, tap the tab or the dimmed area, Android back",
+    "Outcomes empty states → Go to cases / Go to entities": "router.navigate('/cases') / router.navigate('/entities')",
+    "Outcomes chart → drag": "OutcomeChart PanResponder → onSelectMonth(month) → OutcomesView pickedMonth; TabPagerContext.setSwipeLocked while the finger is down",
+    "Outcomes floating bar → outcomes dropdown": "local state dropdownOpen = true (OutcomesDropdown, a floating list under the bar)",
+    "Outcomes dropdown → pick / tap outside": "pick: local state outcomeKey = key, list closes; tap outside: list closes",
+    "CaseCard → tap": "cases screen local state expandedId (that case's id, or null if it was already open) → ReorderableGrid expanded panel with CaseEntitiesPanel"
   },
   "data": {
     "Case": {
@@ -92,7 +101,8 @@
       "inputs": "per-type input object"
     },
     "entity type": "entityTypeOf(entityId), not stored separately",
-    "entity order": "entities array order (also sets investment accounts 4–12)"
+    "entity order": "entities array order (also sets investment accounts 4–12)",
+    "OutcomeKey": "netWorth | expensesPerMonth | liquidCash | liquidCashPlusInvestments | incomePerMonth | incomePlusGainsPerMonth | incomePlusAllGainsPerMonth (types.ts; labels in TypesAndVariables/outcomeLabels.ts)"
   },
   "state": {
     "AppDataContext": {
@@ -106,9 +116,15 @@
       "status": "built"
     },
     "entities screen (local)": {
-      "entityType": "EntityTypeKey (default existingHome)",
-      "menuOpen": "boolean",
+      "groupKey + menuOpen": "from EntityMenuContext (default group existingHome)",
+      "addMenuOpen": "boolean (Housing's Renting / Buying list)",
       "editor": "null | add | edit+entity"
+    },
+    "TabPagerContext": {
+      "file": "context/TabPagerContext.tsx",
+      "holds": "swipeLocked (no swiping between tabs)",
+      "use": "ReorderableGrid calls setSwipeLocked during a drag; (tabs)/_layout reads it",
+      "status": "built"
     },
     "ThemeContext": {
       "file": "context/ThemeContext.tsx",
@@ -120,7 +136,15 @@
       "status": "built"
     },
     "cases screen (local)": {
-      "editor": "null | add | edit+existingCase"
+      "editor": "null | add | edit+existingCase",
+      "expandedId": "null | caseId: the one case whose entities show under its card"
+    },
+    "outcomes screen (local)": {
+      "projection": "null | { startingAge, cases, entities, computedCases }: the engine's results and the data they came from",
+      "upToDate": "projection's data are the same objects as useAppData()'s; false → spinner, and the engine runs once the tab is showing (usePathname() === '/outcomes')",
+      "OutcomesView": "child shown when up to date: shown = one { caseId, caseName, caseColor, series } per case that computed (padded to the longest case); pickedMonth = the chart's selected month (null = the last month); cards for failed cases",
+      "outcomeKey": "OutcomeKey (default netWorth; resets on app start)",
+      "dropdownOpen": "boolean (the outcomes dropdown)"
     }
   },
   "operations": {
@@ -157,18 +181,23 @@
       "returns": "{ startingAge, computedCases }",
       "status": "built"
     },
-    "reorderEntities(from, to)": {
-      "trigger": "EntityCard grip drag",
-      "status": "planned (grip lift animation built)"
+    "reorderEntities(entityIds)": {
+      "trigger": "EntityCard grip drag → ReorderableGrid onReorder; the listed entities swap among the places they already hold in the entities array",
+      "status": "built"
     },
-    "startingAge storage": {
-      "status": "planned (age vs birthday undecided)"
+    "setStartingAge(age)": {
+      "where": "AppDataContext (AsyncStorage key startingAge; Age {years, months}; defaults to 20 yrs 0 mos until set)",
+      "trigger": "Cases floating starting age bar → EditStartingAgeCard → Done",
+      "status": "built"
     },
     "run projections for outcomes": {
-      "status": "planned"
+      "where": "app/(tabs)/outcomes.tsx",
+      "does": "masterEngine only while the Outcomes tab is showing and the data has changed since the last run (never stored); spinner meanwhile; then outcomeSeries per case",
+      "status": "built"
     },
     "isHidden effect on projections": {
-      "status": "undecided (entities and cases)"
+      "does": "masterEngine: hidden case = left out completely (no computed case); hidden entity = skipped as if it didn't exist",
+      "status": "built"
     },
     "setMode(mode)": {
       "where": "ThemeContext",
@@ -194,15 +223,24 @@
       "where": "Engines/masterEngine.ts",
       "status": "built"
     },
-    "reorderCases(from, to)": {
-      "trigger": "CaseCard grip drag; rewrites caseIndex",
-      "status": "planned (grip lift animation built)"
+    "reorderCases(caseIds)": {
+      "trigger": "CaseCard grip drag → ReorderableGrid onReorder; rewrites caseIndex to each case's place in the list",
+      "status": "built"
+    },
+    "outcomeSeries(history, key, months?)": {
+      "where": "Engines/outcomes.ts",
+      "returns": "Float64Array, series[month]; months pads past the end of the history (balances hold, per-month = 0)",
+      "rules": "OUTCOME_RULES: accounts to add up + credit (flip sign) + perMonth (this month − last month)",
+      "status": "built"
     }
   },
   "components": {
     "TopBar": {
       "file": "components/TopBar.tsx",
-      "does": "large section title (from pathname) + settings button",
+      "does": "surface bar rendered once by (tabs)/_layout: Collegiate logo (left), centered title, settings button (right)",
+      "props": [
+        "title"
+      ],
       "calls": [
         "router.push('/settings')"
       ],
@@ -217,13 +255,14 @@
         "isFocused (from TabTrigger)"
       ],
       "status": "built",
-      "notes": "ignores TabTrigger's default row style; lays itself out as icon over label"
+      "notes": "ignores TabTrigger's default row style; icon only (label is for screen readers)"
     },
     "EntityCard": {
       "file": "components/entityCard.tsx",
       "props": [
         "entityName",
         "entityType",
+        "facts: string[] (from entitySummary)",
         "caseName",
         "caseColor",
         "isHidden",
@@ -231,18 +270,72 @@
         "onToggleHidden",
         "onEdit"
       ],
-      "layout": "square; name up to 2 lines; type, case below; bottom 1/4: trash, hide, edit (left 3/4) + grip (right)",
-      "status": "built (drag planned)"
+      "layout": "square; name up to 2 lines; type; 'Case:' + color dot + case name; up to 2 facts; bottom 1/4: trash, hide, edit (left 3/4) + grip (right)",
+      "status": "built"
+    },
+    "entitySummary": {
+      "file": "components/entitySummary.ts",
+      "does": "entitySummary(type, inputs) → up to 2 short lines of an entity's main values for its card; unreadable inputs are left out, never thrown",
+      "test": "tests/entitySummaryTest.ts",
+      "status": "built"
     },
     "EntityTypesMenu": {
       "file": "components/entityTypesMenu.tsx",
       "props": [
         "visible",
+        "onVisibleChange",
+        "selected",
+        "onSelect"
+      ],
+      "does": "SideMenu with the entity groups (22; Housing = renting + buyingHome) and their counts, a line between existing types and the rest",
+      "status": "built"
+    },
+    "SideMenu": {
+      "file": "components/sideMenu.tsx",
+      "props": [
+        "visible",
+        "onVisibleChange",
         "selected",
         "onSelect",
+        "sections: { key, label, count? }[][]",
+        "name (for screen readers)"
+      ],
+      "does": "the floating rounded panel that slides in from the left, with its pull tab, edge swipe and dim; a line between sections",
+      "used by": [
+        "EntityTypesMenu"
+      ],
+      "status": "built"
+    },
+    "OutcomesDropdown": {
+      "file": "components/outcomesDropdown.tsx",
+      "props": [
+        "selected: OutcomeKey",
+        "onPick",
         "onClose"
       ],
-      "does": "left slide-in list of 23 types with counts",
+      "does": "floating list under the Outcomes floating bar (as wide as the bar) with the seven outcomes; the one showing is tinted and checked; tap outside to close",
+      "status": "built"
+    },
+    "OutcomeChart": {
+      "file": "components/outcomeChart.tsx",
+      "props": [
+        "lines: { caseId, caseColor, series }[]",
+        "months",
+        "startingAge",
+        "selectedMonth",
+        "onSelectMonth"
+      ],
+      "does": "Skia canvas: a line per case by month, grid, a draggable vertical selector with a dot on each line; dollar and age labels are Text around the canvas",
+      "status": "built"
+    },
+    "chartMaths": {
+      "file": "components/chartMaths.ts",
+      "exports": [
+        "yAxisFor(min, max) → { min, max, ticks }",
+        "ageTicks(startAgeMonths, months)",
+        "shortDollars",
+        "money"
+      ],
       "status": "built"
     },
     "EditEntityCard (frame)": {
@@ -259,7 +352,7 @@
         "onSubmit",
         "children"
       ],
-      "does": "popup sheet: name, case dropdown, type inputs, Cancel + Add/Done",
+      "does": "centered rounded popup (80% wide, max 60% tall, body scrolls): name, case dropdown, type inputs, Cancel + Add/Done",
       "status": "built"
     },
     "formFields": {
@@ -267,54 +360,49 @@
       "exports": [
         "Field",
         "TextField",
-        "NumberField (kind: dollars | percent | years | number)",
-        "AgeField",
+        "NumberField (kind: dollars | percent | signedPercent | years | months | whole | decimal | positive | number; checks its own text)",
+        "AgeField (checks its own text)",
+        "AgeWindowFields (start + end age)",
+        "LoanAny3Fields",
+        "SectionLabel",
+        "Note",
         "CaseDropdown",
         "ColorDropdown",
+        "ChoiceDropdown",
         "Segmented",
-        "fieldError",
-        "ERRORS",
-        "parseDollars",
-        "parsePercent",
-        "parseWhole",
-        "parseOptionalAge",
-        "readNumberText",
-        "readDollarsText",
-        "readAgeText",
-        "formatDollars"
+        "everything from formParsing.ts (parse*, read*, optional, parseAgeWindow, parseLoanText, ERRORS, …)"
       ],
       "status": "built"
     },
     "edit cards per type": {
-      "registry": "components/(editEntityCards)/index.ts → EDIT_ENTITY_CARDS",
+      "registry": "components/(editEntityCards)/index.ts → EDIT_ENTITY_CARDS (full Record, all 23 types)",
       "props": "EditEntityCardProps (types.ts)",
+      "forms": "components/(editEntityCards)/entityForms.ts: one form per type (read saved inputs → text; toInputs text → engine inputs | null)",
+      "hook": "components/(editEntityCards)/useEntityCard.ts: name, case, text, canSubmit, save",
       "built": [
         "openingCash → editExistingCashCard.tsx",
-        "existingHome → editExistingHomeCard.tsx"
+        "existingHome → editExistingHomeCard.tsx",
+        "existingVehicle → editExistingVehicleCard.tsx",
+        "existingCreditCard → editExistingCreditCardCard.tsx",
+        "existingStudentLoans, otherExistingLoan → editExistingLoanCards.tsx",
+        "existingInvestment → editExistingInvestmentCard.tsx",
+        "otherExistingAsset → editOtherExistingAssetCard.tsx",
+        "income → editIncomeCard.tsx",
+        "renting → editRentingCard.tsx",
+        "buyingHome → editBuyingHomeCard.tsx",
+        "buyingCar → editBuyingCarCard.tsx",
+        "gas → editGasCard.tsx",
+        "kid → editKidCard.tsx",
+        "education → editEducationCard.tsx",
+        "investing → editInvestingCard.tsx",
+        "food → editFoodCard.tsx",
+        "healthInsurance → editHealthInsuranceCard.tsx",
+        "pet → editPetCard.tsx",
+        "personal → editPersonalCard.tsx",
+        "birthdayChristmas, recurringPayment → editAmountFrequencyCards.tsx",
+        "oneTimeExpense → editOneTimeExpenseCard.tsx"
       ],
-      "planned": [
-        "existingVehicle",
-        "existingCreditCard",
-        "existingStudentLoans",
-        "existingInvestment",
-        "otherExistingAsset",
-        "otherExistingLoan",
-        "income",
-        "renting",
-        "buyingHome",
-        "buyingCar",
-        "gas",
-        "kid",
-        "education",
-        "investing",
-        "food",
-        "healthInsurance",
-        "pet",
-        "personal",
-        "birthdayChristmas",
-        "oneTimeExpense",
-        "recurringPayment"
-      ]
+      "status": "built"
     },
     "CaseCard": {
       "file": "components/caseCard.tsx",
@@ -325,10 +413,21 @@
         "entityCount",
         "onDelete",
         "onToggleHidden",
-        "onEdit"
+        "onEdit",
+        "isExpanded",
+        "onToggleExpanded"
       ],
-      "layout": "full width; left color bar; name, color, trash/hide/edit; grip on right (lift 3%)",
-      "status": "built (drag planned)"
+      "layout": "full width; case-color border (caseBorderWidth); name, color, trash/hide/edit; grip on right (lift 3%)",
+      "status": "built"
+    },
+    "CaseEntitiesPanel": {
+      "file": "components/caseEntitiesPanel.tsx",
+      "props": [
+        "caseColor",
+        "entities"
+      ],
+      "does": "the box that comes out from under an open case card: each of the case's entities with its name, type and entitySummary facts",
+      "status": "built"
     },
     "EditCaseCard": {
       "file": "components/editCaseCard.tsx",
@@ -350,7 +449,7 @@
         "EntityCard",
         "CaseCard"
       ],
-      "notes": "ActionWell: filled well + lift; activeColor = hidden outline/tint; opensCard = trailing chevron. GripHandle: hold 120ms to pick up (haptic).",
+      "notes": "ActionWell: filled well + lift; activeColor = hidden outline/tint; opensCard = trailing chevron. GripHandle: PanResponder; hold 120ms to pick up (haptic), then onMove(dx, dy) until onPutDown.",
       "status": "built"
     },
     "ConfirmDialog": {
@@ -371,21 +470,57 @@
     "screenParts": {
       "file": "components/screenParts.tsx",
       "exports": [
-        "AddButton",
-        "EmptyState"
+        "EmptyState",
+        "FloatingRow (green plus + a bar, floating over the top of the Cases, Entities and Outcomes lists; no onAdd = no plus; prominent = taller + outlined)",
+        "FLOATING_ROW_TOP / FLOATING_ROW_HEIGHT / FLOATING_ROW_SPACE",
+        "PROMINENT_ROW_SPACE"
       ],
       "status": "built"
     },
-    "EdgePullTab": {
-      "file": "components/edgePullTab.tsx",
+    "ReorderableGrid": {
+      "file": "components/reorderableGrid.tsx",
       "props": [
-        "onOpen",
-        "label"
+        "data",
+        "keyOf",
+        "columns",
+        "gap",
+        "square?",
+        "paddingTop",
+        "paddingBottom",
+        "paddingHorizontal",
+        "renderItem(item, drag)",
+        "onReorder(keys)",
+        "empty",
+        "expanded?: { key, overlap, content } (columns = 1 only)"
       ],
-      "does": "left-edge tab with arrow; follows finger, opens past 40px / fast flick / tap",
-      "used by": [
-        "entities screen"
+      "does": "scrolling grid / list (replaces FlatList on cases and entities) whose cards drag into a new order; other cards slide out of the way",
+      "status": "built"
+    },
+    "AddOptionsMenu": {
+      "file": "components/addOptionsMenu.tsx",
+      "props": [
+        "options",
+        "onPick",
+        "onClose"
       ],
+      "does": "floating list under the floating row's plus when the entity group has more than one type (Housing: Renting / Buying)",
+      "status": "built"
+    },
+    "EditStartingAgeCard": {
+      "file": "components/editStartingAgeCard.tsx",
+      "props": [
+        "onClose"
+      ],
+      "does": "centered popup: years + months, Cancel + Done (saves startingAge)",
+      "status": "built"
+    },
+    "CollegiateLogo": {
+      "file": "components/collegiateLogo.tsx",
+      "props": [
+        "height",
+        "color"
+      ],
+      "does": "the Collegiate wordmark as one Skia path (from assets/CollegiateLogo.svg), tinted with the given color",
       "status": "built"
     }
   },
@@ -402,13 +537,13 @@
     "case colors": "CASE_COLORS in components/theme.ts (the 11 accent bases)",
     "reference": "design reference pasted by the user (EntityCard / EditEntityCard / theme): adopted as look, not code",
     "rules": [
-      "entity tiles outlined (1.5px edge); case cards filled + lift",
+      "case-color outlines: useTheme().caseBorderWidth (1px dark, 1.5px light) on entity tiles, case cards, edit popups, outcome rows; case cards also lift in light mode",
       "pressables: lift + active:opacity feedback; ones that open something get a chevron",
       "inputs: filled inset, h-14, rounded-2xl; accent outline on focus; danger outline + error text when invalid",
-      "edit entity sheet: one slate header block; footer Cancel (outlined) + primary (accent, wider, chevron)",
+      "edit entity popup (centered): plain header with a case-color line under it; footer Cancel (outlined) + primary (accent, wider, chevron)",
       "hidden = faded text + case-color outline/tint on the hide button",
       "destructive actions confirm first (ConfirmDialog)",
-      "haptics: grip pick-up, hide toggle, delete confirm"
+      "haptics: grip pick-up, hide toggle, delete confirm, holding a card to edit it"
     ],
     "haptics": "expo-haptics"
   }

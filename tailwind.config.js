@@ -11,6 +11,7 @@ module.exports = {
       colors: {
         canvas: token("canvas"), // the page, furthest back
         surface: token("surface"), // cards, rows
+        bar: token("bar"), // the top bar and the bottom menu
         inset: token("inset"), // icon wells, tracks
         hairline: token("hairline"), // borders only
         edge: token("edge"), // 1.5px outline on secondary boxes
@@ -21,6 +22,7 @@ module.exports = {
         onDark: token("on-dark"), // text on dark fills
         onAccent: token("on-accent"), // text on a filled accent
         danger: token("danger"), // invalid input outline
+        green: token("green"), // add buttons
         accent: { DEFAULT: token("accent"), tint: token("accent-tint"), ink: token("accent-ink") }, // the app's one accent (sky)
       },
       fontFamily: {

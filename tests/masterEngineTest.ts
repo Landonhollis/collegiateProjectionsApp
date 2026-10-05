@@ -196,6 +196,55 @@ test('case and input validation', () => {
   check(masterEngine({ startingAge, cases: [], entities: [] }).computedCases.length === 0, 'no cases → no computed cases');
 });
 
+test('hidden cases and entities', () => {
+  const hide = <T extends { isHidden: boolean }>(x: T): T => ({ ...x, isHidden: true });
+  const all = [...entitiesA, ...entitiesB];
+  const base = masterEngine({ startingAge, cases: [caseA, caseB], entities: all }).computedCases;
+
+  // Hidden case: left out completely; the other case is untouched
+  const hiddenA = masterEngine({ startingAge, cases: [hide(caseA), caseB], entities: all }).computedCases;
+  check(hiddenA.length === 1 && hiddenA[0].caseId === 'B', 'hidden case has no computed case');
+  check(sameHistory(hiddenA[0].chartOfAccountsHistory, base[1].chartOfAccountsHistory!), 'hiding a case does not change the other case');
+  check(masterEngine({ startingAge, cases: [hide(caseA), hide(caseB)], entities: all }).computedCases.length === 0, 'all cases hidden → no computed cases');
+  // A hidden case's entities are never run, so a bad one can't cause an error
+  const badInHidden = masterEngine({
+    startingAge, cases: [hide(kase('h')), caseB],
+    entities: [entity('renting', { rentMonthly: -1 }, 'h'), ...entitiesB],
+  }).computedCases;
+  check(badInHidden.length === 1 && badInHidden[0].error === null, 'bad entity in a hidden case is ignored');
+
+  // Hidden entity: same result as the case without that entity
+  entitiesA.forEach((e, i) => {
+    const hidden = masterEngine({ startingAge, cases: [caseA], entities: entitiesA.map((x) => (x === e ? hide(x) : x)) }).computedCases[0];
+    const removed = masterEngine({ startingAge, cases: [caseA], entities: entitiesA.filter((x) => x !== e) }).computedCases[0];
+    check(hidden.error === null && sameHistory(hidden.chartOfAccountsHistory, removed.chartOfAccountsHistory!), `hidden entity ${i} = entity removed (history)`);
+    check(JSON.stringify(hidden.investmentAccounts) === JSON.stringify(removed.investmentAccounts), `hidden entity ${i} = entity removed (investment accounts)`);
+    check(!sameHistory(hidden.chartOfAccountsHistory, base[0].chartOfAccountsHistory!), `hiding entity ${i} changes the history`);
+  });
+  // Hiding the first investment entity frees account 4 for the next one
+  const [invExisting, invNew] = [entitiesA[2].entityId, entitiesA[4].entityId];
+  const freed = masterEngine({ startingAge, cases: [caseA], entities: entitiesA.map((x, i) => (i === 2 ? hide(x) : x)) }).computedCases[0];
+  check(freed.investmentAccounts[invNew] === 4 && !(invExisting in freed.investmentAccounts), 'hidden investment entity takes no account');
+  // 10 investment entities is too many, unless one is hidden
+  const ten = Array.from({ length: 10 }, () => entity('investing', { initialContribution: 0, returnPct: 5, contributionStartAge: age(25) }));
+  check(runOne('ten', ten).error !== null, '10 shown investment entities → error');
+  check(runOne('ten', ten.map((x, i) => (i === 0 ? hide(x) : x))).error === null, '10 investment entities with 1 hidden is fine');
+  // A hidden entity's inputs are never checked
+  const withBadHidden = runOne('x', [entity('openingCash', { amount: 500 }), hide(entity('renting', { rentMonthly: -1 }))]);
+  check(withBadHidden.error === null && balanceAt(withBadHidden.chartOfAccountsHistory!, 0, ACCT.CASH) === 500, 'hidden entity with bad inputs is skipped');
+  // Every entity hidden: same as a case with no entities
+  const allHidden = runOne('x', entitiesB.map(hide));
+  check(allHidden.error === null && sameHistory(allHidden.chartOfAccountsHistory, runOne('x', []).chartOfAccountsHistory!), 'all entities hidden = empty case');
+
+  // Hidden things are still linked and checked
+  check(throws(() => masterEngine({ startingAge, cases: [caseB], entities: [hide(entity('food', {}, 'nope'))] })), 'hidden entity with unknown caseId still throws');
+  check(throws(() => masterEngine({ startingAge, cases: [hide(caseB), caseB], entities: [] })), 'duplicate caseId still throws when one is hidden');
+  const noFlagCase = { caseId: 'n', caseName: 'n', caseColor: '#000000', caseIndex: 0 } as unknown as Case;
+  check(throws(() => masterEngine({ startingAge, cases: [noFlagCase], entities: [] })), 'case without isHidden throws');
+  const noFlagEntity = { entityId: makeEntityId('food'), caseId: 'B', name: 'x', inputs: {} } as unknown as Entity;
+  check(throws(() => masterEngine({ startingAge, cases: [caseB], entities: [noFlagEntity] })), 'entity without isHidden throws');
+});
+
 test('investment accounts: 9 fit, mixed types, 401k shared', () => {
   const nine: Entity[] = Array.from({ length: 9 }, (_, i) =>
     i % 2 ? entity('existingInvestment', { currentInvested: 1_000 * (i + 1), returnPct: 0 }) : entity('investing', { initialContribution: 1_000 * (i + 1), returnPct: 0, contributionStartAge: startingAge }));

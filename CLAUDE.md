@@ -16,11 +16,15 @@ masterEngine({ startingAge, cases, entities })
 - `presetVars.ts`: all preset numbers (SE-US averages, 2026 tax rules, real rates).
 - `coahe.ts`: Chart of Accounts History Engine.
 - `masterEngine.ts`: entity IDs, links entities to cases, investment account assignment, runs everything per case.
+- `outcomes.ts`: `outcomeSeries(history, key, months?)` turns one case's history into what the outcomes screen shows
+  (net worth, liquid cash, expenses per month, …). The seven outcomes and what each adds up are listed at its top.
 - `aiContext/`: handoff docs for the app (start with `aiContext/README.md`). `aiContext/appMap.json` = routes, navigation,
   state, operations, components with build status. Update these when any of those change.
-- Tests (`npx tsx <file>.ts`, no framework). Run all five after any change:
-  `entityEnginesTest`, `engineSpecTest` (hand calcs + reference models), `coaheTest`, `masterEngineTest`,
-  `propertyTest` (seeded random fuzz; `SEED=`, `PER_TYPE=`, `CASES=` env vars).
+- Tests (`npx tsx tests/<file>.ts`, no framework). Run all nine after any change:
+  `entityEnginesTest`, `engineSpecTest` (hand calcs + reference models), `coaheTest`, `masterEngineTest`, `outcomesTest`, `chartMathsTest` (the outcomes chart's axes and labels),
+  `propertyTest` (seeded random fuzz; `SEED=`, `PER_TYPE=`, `CASES=` env vars),
+  `entityFormsTest` (every edit card's form: text → engine inputs → runs in its engine → reads back),
+  `entitySummaryTest` (the facts shown on each entity card).
 
 ## Rules
 - Money is whole dollars. Debit = +, credit = −. Every journal entry sums to 0.
@@ -37,13 +41,20 @@ masterEngine({ startingAge, cases, entities })
 - Investment accounts (10 per case): 3 = retirement (all income 401k deposits); 4–12 assigned by masterEngine to
   investing/existingInvestment in entity order (max 9). App-provided account numbers are overwritten.
   Entities never reference each other.
+- Gains: account 51 = gains on investment accounts 4–12 only; 53 = gains on retirement (3). Keep them apart: outcomes count
+  51 as income-like ("gains on liquid investments"); only "Income + All Gains per Month" adds 53.
+- Outcomes: a balance outcome reads the accounts as they stand; a per-month outcome = this month's running total − last month's.
+  Value changes (appreciation 52, retirement gains 53, vehicle depreciation 83) are in net worth only, never income or expenses (except 53 in "Income + All Gains per Month").
 - Bad input throws a clear error: negative dollar amounts, percents out of range, unknown choices, malformed
   ages (whole years ≥ 0, months 0–11), loan terms < 1 month, sellAge before start (existing) or before purchase.
   Only returnPct, appreciationPct, raisePct (≥ −100) may be negative.
 - Investment withdrawals stop at $0 (never negative).
+- Hidden (`isHidden`, on cases and entities, must be true / false): a hidden case is left out completely (no computed case).
+  A hidden entity is skipped as if it didn't exist (engine not run, inputs not checked, no investment account).
+  Hidden ones are still linked and checked like any other.
 - Errors: engines and COAHE throw. masterEngine catches per case → `chartOfAccountsHistory: null`,
   `error: { entityId, message }`; other cases still compute. Linking problems throw from masterEngine itself:
-  cases/entities not arrays, missing/duplicate caseId or entityId, an entity whose caseId matches no case.
+  cases/entities not arrays, missing/duplicate caseId or entityId, an entity whose caseId matches no case, a non-boolean isHidden.
 - Don't flag negative cash or balances; that's not the engines' job.
 
 ## Working with the user

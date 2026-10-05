@@ -11,6 +11,7 @@ export type Scheme = "light" | "dark";
 const light = {
   canvas: "#F4F5F6",
   surface: "#FFFFFF",
+  bar: "#FFFFFF", // the top bar and bottom menu (same as surface in light mode)
   inset: "#EBEBEC",
   hairline: "#E2E5E8",
   edge: "#96A0AB",
@@ -24,12 +25,14 @@ const light = {
   accent: "#4FA8DD", // sky
   accentTint: "#E5F2FA",
   accentInk: "#377297",
+  green: "#3DB86A", // the add button (its own green, not one of the guide accents)
 };
 export type Palette = typeof light;
 
 const dark: Palette = {
   canvas: "#20242A",
   surface: "#2A2F36",
+  bar: "#31373E", // a step lighter than surface, so the bars stand off the cards
   inset: "#31373E",
   hairline: "#373E46",
   edge: "#5A646F",
@@ -43,6 +46,7 @@ const dark: Palette = {
   accent: "#4FA8DD",
   accentTint: "#334D60",
   accentInk: "#4FA8DD",
+  green: "#3DB86A",
 };
 
 export const PALETTES: Record<Scheme, Palette> = { light, dark };
@@ -75,6 +79,12 @@ export const LIFTS: Record<Scheme, ViewStyle> = {
   light: { shadowColor: "#101820", shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   dark: { borderTopWidth: 1, borderTopColor: "rgba(255, 255, 255, 0.10)" },
 };
+
+/**
+ * How thick an outline in a case color is (entity and case cards, edit popups, outcome rows).
+ * Light mode is 1.5x thicker: a thin colored line gets lost on the white cards.
+ */
+export const CASE_BORDER_WIDTHS: Record<Scheme, number> = { light: 1.5, dark: 1 };
 
 /** "#4FA8DD", 0.12 → "#4FA8DD1F" (hex with alpha), for tints of a dynamic color like a case color. */
 export function withAlpha(hex: string, alpha: number): string {

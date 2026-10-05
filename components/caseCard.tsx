@@ -1,29 +1,33 @@
 import { useRef } from "react";
-import { Animated, Text, View } from "react-native";
+import { Animated, Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useTheme } from "../context/ThemeContext";
 import { ActionWell, GripHandle } from "./cardControls";
-import { caseColorName } from "./theme";
+import type { DragHandlers } from "./reorderableGrid";
+import { caseColorName, withAlpha } from "./theme";
 
 type CaseCardProps = {
   caseName: string;
   caseColor: string; // hex
   isHidden: boolean;
   entityCount: number;
+  /** Its entities are showing under it (see CaseEntitiesPanel). */
+  isExpanded: boolean;
+  /** Tapping the card (not a button or the grip): show / put away its entities. */
+  onToggleExpanded: () => void;
   onDelete: () => void;
   onToggleHidden: () => void;
   onEdit: () => void;
-};
+} & DragHandlers; // the grip drags the card to a new place (see ReorderableGrid)
 
-const BAR_WIDTH = 10;
-const RADIUS = 20;
-
-// Full-width card for one case. Filled (a list card, per the colors guide) where entity tiles are
-// outlined, so the two read as different things.
-//   left edge:  thick bar in the case color, top to bottom
+// Full-width card for one case, outlined in its case color (fainter when hidden).
 //   middle:     case name, color + entity count, then delete / hide / edit
-//   right:      grip. Hold it to lift the card (drag-to-reorder by caseIndex comes later).
+//   right:      grip. Hold it to lift the card, then drag to reorder.
+// Tapping the card anywhere else (not on a button or the grip) shows or puts away its entities under it;
+// the small arrow after the entity count says which. Holding it there opens the edit popup, same as Edit.
 export default function CaseCard(props: CaseCardProps) {
-  const { lift: liftStyle } = useTheme();
+  const { lift: liftStyle, scheme, caseBorderWidth, colors } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
 
   function lift(to: number) {
@@ -34,22 +38,21 @@ export default function CaseCard(props: CaseCardProps) {
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
-      {/* No overflow-hidden here: it would clip the lift shadow. The bar rounds its own corners instead. */}
-      <View
-        className="flex-row rounded-[20px] bg-surface"
-        style={liftStyle}
+      {/* The dark-mode lift is a top border, which would cover the case-color border, so only light mode gets the lift. */}
+      <Pressable
+        className="flex-row rounded-[20px] border bg-surface"
+        style={[scheme === "light" ? liftStyle : null, { borderWidth: caseBorderWidth, borderColor: withAlpha(props.caseColor, textFade) }]}
+        onPress={() => {
+          Haptics.selectionAsync();
+          props.onToggleExpanded();
+        }}
+        onLongPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          props.onEdit();
+        }}
+        accessible={false} // screen readers use the buttons inside; this keeps them reachable
         accessibilityLabel={`${props.caseName}, ${caseColorName(props.caseColor)}${props.isHidden ? ", hidden" : ""}`}
       >
-        <View
-          style={{
-            width: BAR_WIDTH,
-            backgroundColor: props.caseColor,
-            opacity: props.isHidden ? 0.45 : 1,
-            borderTopLeftRadius: RADIUS,
-            borderBottomLeftRadius: RADIUS,
-          }}
-        />
-
         <View className="flex-1 py-4 pl-4">
           <View style={{ opacity: textFade }}>
             <Text className="font-inter-bold text-[20px] leading-[26px] tracking-tight text-ink" numberOfLines={1} ellipsizeMode="clip">
@@ -63,6 +66,7 @@ export default function CaseCard(props: CaseCardProps) {
                 {props.entityCount} {props.entityCount === 1 ? "entity" : "entities"}
                 {props.isHidden ? "  ·  Hidden" : ""}
               </Text>
+              <Ionicons name={props.isExpanded ? "chevron-up" : "chevron-down"} size={14} color={colors.muted} />
             </View>
           </View>
 
@@ -82,9 +86,21 @@ export default function CaseCard(props: CaseCardProps) {
 
         {/* Full lift (10%) like the entity card would push a full-width card off-screen, so 3% here. */}
         <View className="w-16 items-center justify-center">
-          <GripHandle barWidth={22} align="center" onPickUp={() => lift(1.03)} onPutDown={() => lift(1)} />
+          <GripHandle
+            barWidth={22}
+            align="center"
+            onPickUp={() => {
+              lift(1.03);
+              props.onDragStart();
+            }}
+            onMove={props.onDragMove}
+            onPutDown={() => {
+              lift(1);
+              props.onDragEnd();
+            }}
+          />
         </View>
-      </View>
+      </Pressable>
     </Animated.View>
   );
 }

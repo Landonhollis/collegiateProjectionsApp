@@ -49,8 +49,9 @@ export const ACCT = {
   CREDIT_CARD: 24,
   EQUITY: 40,
   EARNED_INCOME: 50,
-  INVESTMENT_GAINS: 51, // may carry a debit balance (losses)
+  INVESTMENT_GAINS: 51, // gains on investment accounts 4–12; may carry a debit balance (losses)
   APPRECIATION: 52, // may carry a debit balance (other assets that lose value)
+  RETIREMENT_GAINS: 53, // gains on the retirement account (3); may carry a debit balance (losses)
   RENT: 70,
   MORTGAGE_INTEREST: 71,
   CAR_INSURANCE: 72,
@@ -831,7 +832,7 @@ export const investingEngine: Engine<InvestingInput> = (input, ctx) => {
  * Monthly: Cr 50 gross · Dr 79 income tax · Dr 94 SS+Medicare · Dr 93 charity ·
  *          Dr retirement account (pre-tax) · Dr cash net pay.
  * Taxes are figured on the whole salary year, then spread evenly over its 12 months.
- * This engine also grows its own retirement deposits (Dr account / Cr 51) until endMonth.
+ * This engine also grows its own retirement deposits (Dr account / Cr 53) until endMonth.
  */
 export const incomeEngine: Engine<IncomeInput> = (input, ctx) => {
   const led = new Ledger(ctx);
@@ -861,7 +862,7 @@ export const incomeEngine: Engine<IncomeInput> = (input, ctx) => {
     if (retExact !== 0) {
       retExact *= retFactor;
       const target = roundDollar(retExact);
-      led.move(m, retAcct, ACCT.INVESTMENT_GAINS, target - retBooked);
+      led.move(m, retAcct, ACCT.RETIREMENT_GAINS, target - retBooked);
       retBooked = target;
     }
     if (m > last) continue;

@@ -370,7 +370,7 @@ test('income: raises, charity, 401k growth', () => {
   for (const m of [1, 2, 12, 13, 36, 37, 120, 500, 960]) if (bal(e, 3, m) !== want.get(m)) bad++;
   check(bad === 0, `401k balance matches independent grow-then-deposit loop (${bad} misses; 960: ${bal(e, 3)} vs ${want.get(960)})`);
   check(lastMonth(e) === 960, '401k keeps growing to the horizon after the job ends');
-  check(bal(e, 3) === -bal(e, ACCT.INVESTMENT_GAINS) + depPosted, '401k = deposits + gains');
+  check(bal(e, 3) === -bal(e, ACCT.RETIREMENT_GAINS) + depPosted, '401k = deposits + gains');
   const cash = bal(e, ACCT.CASH);
   check(cash === -(bal(e, ACCT.EARNED_INCOME) + bal(e, ACCT.INCOME_TAX) + bal(e, ACCT.OTHER_TAXES) + bal(e, ACCT.CHARITY)) - depPosted, 'cash = gross − taxes − charity − 401k');
 });

@@ -12,12 +12,13 @@ type EditCaseCardProps =
   { editType: "add"; existingCase?: undefined; onClose: () => void } | { editType: "edit"; existingCase: Case; onClose: () => void };
 
 // Popup for making or editing a case: a wide (landscape) card centered on the screen.
-//   top:    color stripe (live preview of the chosen color), "New case" / "Edit case", close
+//   border: the chosen color (live preview)
+//   top:    "New case" / "Edit case", close
 //   middle: name and color, side by side
 //   bottom: Cancel (closes, changes nothing) and Done (saves)
 export default function EditCaseCard(props: EditCaseCardProps) {
   const { cases, saveCase } = useAppData();
-  const { colors, lift } = useTheme();
+  const { colors, lift, caseBorderWidth } = useTheme();
   const isAdd = props.editType === "add";
 
   // New cases start with the first color no other case uses yet.
@@ -41,11 +42,16 @@ export default function EditCaseCard(props: EditCaseCardProps) {
     <Modal transparent animationType="fade" onRequestClose={props.onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="flex-1 items-center justify-center bg-black/40 px-4"
+        className="flex-1 items-center justify-center bg-black/70 px-4"
       >
-        <View className="w-full max-w-[520px] overflow-hidden rounded-[28px] bg-canvas">
-          <View style={{ height: 6, backgroundColor: color }} />
-          <View className="px-5 pb-5 pt-4">
+        {/* Tap the dimmed area to close (same as Cancel) */}
+        <Pressable className="absolute inset-0" onPress={props.onClose} accessibilityLabel="Close" />
+        {/* Outlined in the chosen color, like the case's card */}
+        <View
+          className="w-full max-w-[520px] overflow-hidden rounded-[28px] border bg-canvas"
+          style={{ borderWidth: caseBorderWidth, borderColor: color }}
+        >
+          <View className="p-5">
             <View className="mb-4 flex-row items-center">
               <Text className="flex-1 font-inter-bold text-[24px] tracking-tight text-ink">{isAdd ? "New case" : "Edit case"}</Text>
               <Pressable

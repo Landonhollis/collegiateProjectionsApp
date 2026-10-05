@@ -1,43 +1,57 @@
 import { useState } from "react";
-import { FlatList, Pressable, Text, View, useWindowDimensions } from "react-native";
+import { Text, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppData } from "../../context/AppDataContext";
+import { bottomMenuSpace } from "../../components/TabButton";
 import { useTheme } from "../../context/ThemeContext";
+import { useEntityMenu } from "../../context/EntityMenuContext";
 import { entityTypeOf } from "../../Engines/masterEngine";
-import { ENTITY_TYPE_LABELS } from "../../TypesAndVariables/entityTypeLabels";
+import { ENTITY_TYPE_LABELS, entityGroupByKey } from "../../TypesAndVariables/entityTypeLabels";
 import EntityCard from "../../components/entityCard";
-import EntityTypesMenu from "../../components/entityTypesMenu";
-import EdgePullTab from "../../components/edgePullTab";
+import { entitySummary } from "../../components/entitySummary";
+import ReorderableGrid from "../../components/reorderableGrid";
+import AddOptionsMenu from "../../components/addOptionsMenu";
 import ConfirmDialog from "../../components/confirmDialog";
-import { AddButton, EmptyState } from "../../components/screenParts";
+import { EmptyState, FLOATING_ROW_SPACE, FloatingRow } from "../../components/screenParts";
 import { EDIT_ENTITY_CARDS } from "../../components/(editEntityCards)";
 import type { Entity, EntityTypeKey } from "../../TypesAndVariables/types";
 
 const GUTTER = 16;
 const GAP = 12;
 
-/** What the edit card popup is showing, or null when it's closed. */
-type Editor = { entityEditType: "add" } | { entityEditType: "edit"; entity: Entity } | null;
+/** What the edit card popup is showing, or null when it's closed. An add names the entity type to make. */
+type Editor = { entityEditType: "add"; type: EntityTypeKey } | { entityEditType: "edit"; entity: Entity } | null;
 
-// Entities tab: a grid of square entity cards for one entity type at a time.
-// The side menu (toolbar button, or pull from the left edge) switches the type; Add / Edit open that type's edit card; Delete asks first.
+// Entities tab: a grid of square entity cards for one entity group at a time. Drag a card by its grip to reorder.
+// A group is one entity type, except Housing, which shows renting and buying together (each card says which it is).
+// The side menu (floating picker, or pull its tab on the left edge) switches the group; the plus beside it / Edit open the
+// entity type's edit card (the plus asks which type first when the group has more than one); Delete asks first.
 export default function EntitiesScreen() {
-  const { cases, entities, deleteEntity, toggleEntityHidden } = useAppData();
-  const { colors, lift } = useTheme();
-  const { width } = useWindowDimensions();
+  const { cases, entities, deleteEntity, toggleEntityHidden, reorderEntities } = useAppData();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
-  // Which entity type is showing. The side menu changes it.
-  const [entityType, setEntityType] = useState<EntityTypeKey>("existingHome");
-  const [menuOpen, setMenuOpen] = useState(false);
+  // Which group is showing. The side menu (drawn by the tabs layout) changes it.
+  const { groupKey, setMenuOpen } = useEntityMenu();
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [editor, setEditor] = useState<Editor>(null);
   const [deleting, setDeleting] = useState<Entity | null>(null);
 
-  const shown = entities.filter((e) => entityTypeOf(e.entityId) === entityType);
-  const EditCard = EDIT_ENTITY_CARDS[entityType]; // undefined until this type's card is built
-  const cardWidth = (width - GUTTER * 2 - GAP) / 2;
-  const label = ENTITY_TYPE_LABELS[entityType];
+  const group = entityGroupByKey(groupKey);
+  const label = group.label;
+  const types = group.options.map((o) => o.type);
+  const shown = entities.filter((e) => types.includes(entityTypeOf(e.entityId)));
+  const editorType = editor ? (editor.entityEditType === "add" ? editor.type : entityTypeOf(editor.entity.entityId)) : null;
+  const EditCard = editorType ? EDIT_ENTITY_CARDS[editorType] : null; // every entity type has an edit card
+
+  /** The plus: one type → open its edit card; more than one → ask which. */
+  function startAdd() {
+    if (group.options.length > 1) setAddMenuOpen(true);
+    else setEditor({ entityEditType: "add", type: group.options[0].type });
+  }
 
   function caseOf(entity: Entity) {
     const found = cases.find((c) => c.caseId === entity.caseId);
@@ -56,53 +70,37 @@ export default function EntitiesScreen() {
         />
       );
     }
-    if (!EditCard) {
-      return <EmptyState icon="construct-outline" title="Coming soon" message={`${label} entities can't be added yet.`} />;
-    }
     return (
       <EmptyState
         icon="grid-outline"
         title={`No ${label.toLowerCase()} yet`}
         message="Add one to include it in your cases."
-        action={{ label: `Add ${label.toLowerCase()}`, onPress: () => setEditor({ entityEditType: "add" }) }}
+        action={{ label: `Add ${label.toLowerCase()}`, onPress: startAdd }}
       />
     );
   }
 
   return (
     <View className="flex-1 bg-canvas">
-      {/* Toolbar: type picker on the left, Add on the right */}
-      <View className="flex-row items-center gap-3 px-4 pb-2 pt-4">
-        <Pressable
-          className="h-11 flex-1 flex-row items-center rounded-2xl bg-surface px-3.5 active:opacity-70"
-          style={lift}
-          onPress={() => setMenuOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel={`Entity type: ${label}. Change type`}
-        >
-          <Ionicons name="menu" size={20} color={colors.ink} />
-          <Text className="ml-2.5 flex-1 font-inter-semibold text-base text-ink" numberOfLines={1}>
-            {label}
-          </Text>
-          {shown.length > 0 ? <Text className="mr-1.5 font-inter-semibold text-sm text-muted">{shown.length}</Text> : null}
-          <Ionicons name="chevron-forward" size={16} color={colors.muted} />
-        </Pressable>
-        <AddButton onPress={() => setEditor({ entityEditType: "add" })} disabled={!EditCard || cases.length === 0} />
-      </View>
-
-      <FlatList
-        data={shown}
-        keyExtractor={(e) => e.entityId}
-        numColumns={2}
-        contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 8, paddingBottom: 24, gap: GAP }}
-        columnWrapperStyle={{ gap: GAP }}
-        renderItem={({ item }) => {
-          const c = caseOf(item);
-          return (
-            <View style={{ width: cardWidth }}>
+      {/* The list fills this whole area; the type picker floats over its top. */}
+      <View className="flex-1">
+        <ReorderableGrid
+          data={shown}
+          keyOf={(e) => e.entityId}
+          columns={2}
+          gap={GAP}
+          square
+          paddingTop={FLOATING_ROW_SPACE}
+          paddingBottom={bottomMenuSpace(insets.bottom)}
+          paddingHorizontal={GUTTER}
+          onReorder={reorderEntities}
+          renderItem={(item, drag) => {
+            const c = caseOf(item);
+            return (
               <EntityCard
                 entityName={item.name}
-                entityType={label}
+                entityType={ENTITY_TYPE_LABELS[entityTypeOf(item.entityId)]}
+                facts={entitySummary(entityTypeOf(item.entityId), item.inputs)}
                 caseName={c.caseName}
                 caseColor={c.caseColor}
                 isHidden={item.isHidden}
@@ -112,17 +110,42 @@ export default function EntitiesScreen() {
                   toggleEntityHidden(item.entityId);
                 }}
                 onEdit={() => setEditor({ entityEditType: "edit", entity: item })}
+                {...drag}
               />
-            </View>
-          );
-        }}
-        ListEmptyComponent={emptyState()}
-      />
+            );
+          }}
+          empty={emptyState()}
+        />
 
-      {/* Pull from the left edge to open the type menu */}
-      {!menuOpen ? <EdgePullTab label="Open entity types" onOpen={() => setMenuOpen(true)} /> : null}
+        {/* Floats so the cards scroll under it: the plus (add an entity), then the type picker (opens the type menu). */}
+        <FloatingRow
+          onAdd={startAdd}
+          addDisabled={cases.length === 0}
+          addLabel={`Add ${label.toLowerCase()}`}
+          onPressBar={() => setMenuOpen(true)}
+          barLabel={`Showing ${label}. Change`}
+        >
+          <Ionicons name="menu" size={20} color={colors.ink} />
+          <Text className="ml-2.5 flex-1 font-inter-semibold text-base text-ink" numberOfLines={1}>
+            {label}
+          </Text>
+          {shown.length > 0 ? <Text className="mr-1.5 font-inter-semibold text-sm text-muted">{shown.length}</Text> : null}
+          <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+        </FloatingRow>
+      </View>
 
-      <EntityTypesMenu visible={menuOpen} selected={entityType} onSelect={setEntityType} onClose={() => setMenuOpen(false)} />
+      {addMenuOpen ? (
+        <AddOptionsMenu
+          options={group.options.map((o) => ({ key: o.type, label: o.label }))}
+          onClose={() => setAddMenuOpen(false)}
+          onPick={(key) => {
+            const picked = group.options.find((o) => o.type === key);
+            if (!picked) throw new Error(`Add menu: "${key}" is not an option of ${label}`);
+            setAddMenuOpen(false);
+            setEditor({ entityEditType: "add", type: picked.type });
+          }}
+        />
+      ) : null}
 
       {editor && EditCard ? (
         editor.entityEditType === "add" ? (
