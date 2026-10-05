@@ -44,7 +44,7 @@ export const FLOATING_ROW_TOP = 12; // gap between the top bar and the floating 
 export const FLOATING_ROW_HEIGHT = 44; // the plus is a 44 square, and the bar beside it is the same height
 /** Top padding a list needs so its first cards start below the floating row. */
 export const FLOATING_ROW_SPACE = FLOATING_ROW_TOP + FLOATING_ROW_HEIGHT + 12;
-export const PROMINENT_ROW_HEIGHT = 54; // the taller, outlined row (Outcomes)
+export const PROMINENT_ROW_HEIGHT = 54; // the taller row (Outcomes)
 /** The same, for a prominent floating row. */
 export const PROMINENT_ROW_SPACE = FLOATING_ROW_TOP + PROMINENT_ROW_HEIGHT + 12;
 
@@ -56,7 +56,7 @@ type FloatingRowProps = {
   /** Tapping the bar. */
   onPressBar: () => void;
   barLabel: string; // read by screen readers
-  /** A taller bar with an outline, for a screen where the bar is the main control (Outcomes). */
+  /** A taller bar, for a screen where the bar is the main control (Outcomes). */
   prominent?: boolean;
   /** What the bar shows: an icon, a name, a value, a chevron. */
   children: ReactNode;
@@ -64,13 +64,14 @@ type FloatingRowProps = {
 
 /**
  * The row that floats over the top of a tab screen's list (the cards scroll under it):
- * a green plus on the left, then a bar filling the rest (the starting age on Cases, the entity type on Entities,
+ * a green plus on the left, then an outlined bar filling the rest (the starting age on Cases, the entity type on Entities,
  * the outcome on Outcomes, which has no plus and is prominent).
  */
 export function FloatingRow({ onAdd, addDisabled, addLabel, onPressBar, barLabel, prominent, children }: FloatingRowProps) {
   const { colors, lift, scheme } = useTheme();
-  // The dark-mode lift is a top border, which would sit on top of the outline, so a prominent bar only lifts in light mode.
-  const barStyle = prominent ? [scheme === "light" ? lift : null, { borderWidth: 1.5, borderColor: colors.edge }] : lift;
+  // The bar is the same color as the cards that scroll under it, so it gets an outline to stand apart from them.
+  // The dark-mode lift is a top border, which would sit on top of that outline, so the bar only lifts in light mode.
+  const barStyle = [scheme === "light" ? lift : null, { borderWidth: 1.5, borderColor: colors.edge }];
   return (
     <View
       pointerEvents="box-none"

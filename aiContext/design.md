@@ -42,6 +42,7 @@ Sources: `../../ColorsGuide.md` and `../../FontsGuide.md`. A reference design th
   - The list under it fills the rest of the screen (no toolbar row in the screens).
 - **Floating row** (`FloatingRow` in screenParts, on Cases, Entities and Outcomes): floats over the top of the list, and the cards scroll under it. The list's top padding (`FLOATING_ROW_SPACE`) leaves room for it.
   - Left: a green plus, a 44 square. Then a bar of the same height filling the rest.
+  - Every bar has a 1.5px `edge` outline (it's the same `surface` as the cards scrolling under it and blended in), and lifts in light mode only.
   - Cases bar: person icon, "Starting age", the age ("22 yrs 4 mos"; 20 yrs by default), chevron. Opens `EditStartingAgeCard` (same frame as EditCaseCard).
   - Entities bar: three lines, the group name, count, chevron. Opens the type menu.
   - Outcomes has no plus (leave out `onAdd`), so its bar fills the row: three lines, the outcome name, a down chevron. Opens the outcomes dropdown.
