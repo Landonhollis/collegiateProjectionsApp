@@ -1,10 +1,21 @@
 {
-  "_about": "Routing + operations map. status: built | stub | planned. Keep in sync with the code. Overview: aiContext/README.md",
+  "_about": "Routes, navigation, state, operations and components. status: built | partial | planned. Keep in sync with the code. Why → decisions.md; look → design.md; overview → README.md",
   "routes": {
     "/": {
       "file": "app/index.tsx",
-      "does": "Redirect → /cases",
+      "does": "the router: not signed in → /sign-in; signed in, not onboarded → /onboarding; else → /cases",
       "status": "built"
+    },
+    "/sign-in": {
+      "file": "app/sign-in.tsx",
+      "in": "root Stack, only while signed out",
+      "status": "partial (boilerplate: email + password, sign in / make an account, Continue with Google, Check your email)"
+    },
+    "/onboarding": {
+      "file": "app/onboarding.tsx",
+      "in": "root Stack, only while signed in and not onboarded",
+      "status": "built (first pass; words and look to be refined)",
+      "does": "the ten-step walkthrough"
     },
     "/cases": {
       "file": "app/(tabs)/cases.tsx",
@@ -19,30 +30,26 @@
     "/outcomes": {
       "file": "app/(tabs)/outcomes.tsx",
       "in": "(tabs)",
-      "status": "built (menu, chart, numbers at the selected age)"
+      "status": "built"
     },
     "/settings": {
       "file": "app/settings.tsx",
-      "in": "root Stack (slides over tabs, no tab bar)",
-      "status": "partial (Appearance built)"
+      "in": "root Stack (slides over tabs, no tab bar); only while signed in and onboarded, like (tabs)",
+      "status": "partial (Appearance, Walkthrough: show it again, Account: email + Sign out)"
     }
   },
   "layouts": {
     "app/_layout.tsx": {
       "navigator": "Stack, headerShown false",
-      "wraps": [
-        "SafeAreaProvider",
-        "ThemeProvider",
-        "AppDataProvider"
-      ],
-      "loads": [
-        "Inter 400/500/600/700"
-      ],
+      "wraps": ["SafeAreaProvider", "ThemeProvider", "AuthProvider", "AppDataProvider"],
+      "loads": ["Inter 400/500/600/700"],
       "children": [
         "index",
-        "(tabs)",
-        "settings"
-      ]
+        "sign-in (guard: signed out)",
+        "onboarding (guard: signed in, not onboarded)",
+        "(tabs) + settings (guard: signed in and onboarded)"
+      ],
+      "guards": "Stack.Protected: a screen whose guard is false is taken out of the stack; whoever was on it lands on index"
     },
     "app/(tabs)/_layout.tsx": {
       "navigator": "expo-router/ui Tabs (headless)",
@@ -54,11 +61,7 @@
         "EntityTypesMenu (only on the entities tab, drawn last)",
         "TabList (bottom menu) + the accent marker above the current tab's icon (slides with the pager's scrollX)"
       ],
-      "tabs": [
-        "/cases",
-        "/entities",
-        "/outcomes"
-      ]
+      "tabs": ["/cases", "/entities", "/outcomes"]
     }
   },
   "navigation": {
@@ -67,12 +70,12 @@
     "Bottom menu buttons": "TabTrigger href (/cases, /entities, /outcomes); (tabs)/_layout sees the route change and slides the pager to that tab",
     "Swipe left / right on a tab screen": "the pager follows the finger; past halfway, (tabs)/_layout shows that tab's bars and calls router.navigate(its href). Order: cases, entities, outcomes. Off while a card is being dragged (TabPagerContext.swipeLocked)",
     "Entities floating type picker → type menu": "EntityMenuContext.setMenuOpen(true) (EntityTypesMenu, drawn by (tabs)/_layout)",
-    "Entities floating row plus → Add": "one-type group: editor = { entityEditType: 'add', type }; Housing: addMenuOpen (AddOptionsMenu) → pick → editor",
+    "Entities floating row plus (top right) → Add": "one-type group: editor = { entityEditType: 'add', type }; Housing: addMenuOpen (AddOptionsMenu) → pick → editor; the new entity starts named after its type, in defaultCaseId",
     "EntityCard → Edit (button, or hold the card)": "local state editor = { entityEditType: 'edit', entity }",
-    "Edit card → Cancel / tap outside / Add / Done": "editor = null (Add/Done save first)",
-    "Cases floating row plus → Add": "local state editor = { editType: 'add' } (EditCaseCard popup)",
+    "Edit card → Cancel / X / tap outside / Add / Save": "editor = null (only Add / Save save first)",
+    "Cases floating row plus (top right) → Add": "local state editor = { editType: 'add' } (EditCaseCard popup)",
     "CaseCard → Edit (button, or hold the card)": "local state editor = { editType: 'edit', existingCase }",
-    "Edit case → Cancel / tap outside / Done": "editor = null (Done saves first)",
+    "Edit case → Cancel / X / tap outside / Save": "editor = null (only Save saves first)",
     "EntityCard / CaseCard → Delete": "local state deleting → ConfirmDialog → delete on confirm",
     "Entities empty state (no cases) → Go to cases": "router.navigate('/cases')",
     "TopBar title": "set by (tabs)/_layout from the tab that's showing",
@@ -82,7 +85,19 @@
     "Outcomes chart → drag": "OutcomeChart PanResponder → onSelectMonth(month) → OutcomesView pickedMonth; TabPagerContext.setSwipeLocked while the finger is down",
     "Outcomes floating bar → outcomes dropdown": "local state dropdownOpen = true (OutcomesDropdown, a floating list under the bar)",
     "Outcomes dropdown → pick / tap outside": "pick: local state outcomeKey = key, list closes; tap outside: list closes",
-    "CaseCard → tap": "cases screen local state expandedId (that case's id, or null if it was already open) → ReorderableGrid expanded panel with CaseEntitiesPanel"
+    "CaseCard → tap": "cases screen local state expandedId (that case's id, or null if it was already open) → ReorderableGrid expanded panel with CaseEntitiesPanel",
+    "Cases floating row bar → starting age": "local state editingAge = true (EditStartingAgeCard popup); Cancel / X / tap outside / Save → false (only Save saves first)",
+    "Edit card → \"i\" beside a box's label": "Field local state guideOpen = true (CostGuidePopup over the edit popup); X / tap outside → false",
+    "Sign in / Make account": "useAuth().signIn / signUp → userId set → the sign-in screen's guard turns false → index → /onboarding or /cases (no navigate call)",
+    "Settings → Sign out": "syncNow(), then useAuth().signOut() → userId null → (tabs) and settings are taken away → index → /sign-in. Needs a connection; a failure shows under the button",
+    "Sign in → Continue with Google": "useAuth().signInWithGoogle(): Google's page opens over the app (expo-web-browser) and returns with the login → userId set → as above",
+    "Sign in → Make account (email must be confirmed)": "local state linkSentTo = the email → the 'Check your email' message replaces the form; Back to sign in → null",
+    "Sign in → tap an empty part of the screen": "Keyboard.dismiss()",
+    "Onboarding → each step": "local state step (addCase → saveCase → swipeToEntities → addIncome → fillIncome → swipeToOutcomes → openOutcomes → pickOutcome → dragChart → done); only that step's control works",
+    "Onboarding → Skip (any step) / Start using the app (the end)": "useAppData().completeOnboarding() → onboarded true → the onboarding screen's guard turns false → index → /cases",
+    "Onboarding → close a popup without saving": "back one step (saveCase → addCase, fillIncome → addIncome, pickOutcome → openOutcomes)",
+    "Settings → Walkthrough → Show it again": "useAppData().restartOnboarding() → onboarded false → (tabs) and settings are taken away → index → /onboarding",
+    "Onboarding → income popup → Next": "local state stop moves to the next box; the popup scrolls itself there"
   },
   "data": {
     "Case": {
@@ -102,42 +117,61 @@
     },
     "entity type": "entityTypeOf(entityId), not stored separately",
     "entity order": "entities array order (also sets investment accounts 4–12)",
-    "OutcomeKey": "netWorth | expensesPerMonth | liquidCash | liquidCashPlusInvestments | incomePerMonth | incomePlusGainsPerMonth | incomePlusAllGainsPerMonth (types.ts; labels in TypesAndVariables/outcomeLabels.ts)"
+    "OutcomeKey": "netWorth | expensesPerMonth | liquidCash | liquidCashPlusInvestments | incomePerMonth | incomePlusGainsPerMonth | incomePlusAllGainsPerMonth (types.ts; labels in TypesAndVariables/outcomeLabels.ts)",
+    "ProjectionsData": {
+      "what": "everything saved for one user, as one object (types.ts)",
+      "schemaVersion": "number (SCHEMA_VERSION)",
+      "editedAt": "ms; when last changed on a device",
+      "onboarded": "boolean",
+      "startingAge": "Age",
+      "cases": "Case[]",
+      "entities": "Entity[]",
+      "recentCaseIds": "string[]"
+    },
+    "LocalSlot": {
+      "what": "what the phone keeps for one user",
+      "data": "ProjectionsData",
+      "uploadWaiting": "boolean: the phone has changes the server doesn't",
+      "syncedVersion": "number | null: the server row's version when the two last matched"
+    }
   },
   "state": {
     "AppDataContext": {
       "file": "context/AppDataContext.tsx",
-      "hook": "useAppData()",
+      "hook": "useAppData() (throws when nobody is signed in); useOnboarded() (false when nobody is signed in; for routing)",
       "holds": [
-        "cases: Case[]",
-        "entities: Entity[]"
+        "slot: LocalSlot for the signed-in user (keyed by userId, so a new user starts clean)",
+        "from it: onboarded, startingAge: Age, cases: Case[], entities: Entity[], recentCaseIds (private; most recently used first)"
       ],
-      "storage": "AsyncStorage keys 'cases', 'entities'; loaded on app start, saved on every change",
-      "status": "built"
+      "storage": "phone: AsyncStorage key 'projections:<userId>' (one LocalSlot per user), saved on every change. Server: Supabase table app_data, one row per user per app, uploaded 2 s after the last change, on app background / foreground, and before sign out",
+      "status": "built",
+      "gives": "defaultCaseId: the case a new entity starts in (most recent that still exists, else the top case, else null)",
+      "screens it draws itself": "a spinner while loading; 'Connect to load your data' + Try again when it's this user's first time on the phone and the server can't be reached"
     },
     "entities screen (local)": {
-      "groupKey + menuOpen": "from EntityMenuContext (default group existingHome)",
+      "groupKey + menuOpen": "from EntityMenuContext",
       "addMenuOpen": "boolean (Housing's Renting / Buying list)",
-      "editor": "null | add | edit+entity"
+      "editor": "null | add | edit+entity",
+      "deleting": "null | Entity (ConfirmDialog)"
     },
     "TabPagerContext": {
       "file": "context/TabPagerContext.tsx",
       "holds": "swipeLocked (no swiping between tabs)",
-      "use": "ReorderableGrid calls setSwipeLocked during a drag; (tabs)/_layout reads it",
+      "use": "ReorderableGrid (during a drag) and OutcomeChart (finger on the chart) call setSwipeLocked; (tabs)/_layout reads it",
       "status": "built"
     },
     "ThemeContext": {
       "file": "context/ThemeContext.tsx",
-      "hook": "useTheme() → { mode, scheme, setMode, colors, lift }",
-      "holds": [
-        "mode: 'system' | 'light' | 'dark'"
-      ],
+      "hook": "useTheme() → { mode, scheme, setMode, colors, lift, caseBorderWidth }",
+      "holds": ["mode: 'system' | 'light' | 'dark'"],
       "storage": "AsyncStorage key 'themeMode'; loaded on app start, saved on change; default system",
       "status": "built"
     },
     "cases screen (local)": {
       "editor": "null | add | edit+existingCase",
-      "expandedId": "null | caseId: the one case whose entities show under its card"
+      "expandedId": "null | caseId: the one case whose entities show under its card",
+      "editingAge": "boolean (the starting age popup)",
+      "deleting": "null | Case (ConfirmDialog)"
     },
     "outcomes screen (local)": {
       "projection": "null | { startingAge, cases, entities, computedCases }: the engine's results and the data they came from",
@@ -145,12 +179,34 @@
       "OutcomesView": "child shown when up to date: shown = one { caseId, caseName, caseColor, series } per case that computed (padded to the longest case); pickedMonth = the chart's selected month (null = the last month); cards for failed cases",
       "outcomeKey": "OutcomeKey (default netWorth; resets on app start)",
       "dropdownOpen": "boolean (the outcomes dropdown)"
+    },
+    "EntityMenuContext": {
+      "file": "context/EntityMenuContext.tsx",
+      "hook": "useEntityMenu() → { groupKey, setGroupKey, menuOpen, setMenuOpen }",
+      "holds": "groupKey (default income, the top of the menu), menuOpen; not saved",
+      "use": "(tabs)/_layout draws EntityTypesMenu from it; the entities screen reads groupKey and opens the menu",
+      "status": "built"
+    },
+    "AuthContext": {
+      "file": "context/AuthContext.tsx",
+      "hook": "useAuth() → { userId, email, signIn, signUp, signInWithGoogle, signOut }",
+      "holds": "the signed-in user (from supabase.auth.onAuthStateChange); null = signed out",
+      "storage": "Supabase keeps the login in AsyncStorage, so it's known offline",
+      "status": "built"
+    },
+    "onboarding screen (local)": {
+      "step": "Step (see navigation)",
+      "page": "0 | 1 | 2: which of the three pictures is showing",
+      "outcomeKey": "OutcomeKey (default netWorth)",
+      "pickedMonth": "in OutcomesPicture: the chart's selected month (null = the last)",
+      "area": "the size of the layer the callouts are placed on",
+      "stop": "in NewIncomePopup: salary | startAge | endAge | add"
     }
   },
   "operations": {
     "saveEntity(entity)": {
       "where": "AppDataContext",
-      "does": "add, or replace same entityId in place",
+      "does": "add, or replace same entityId in place; its case becomes the most recent",
       "status": "built"
     },
     "deleteEntity(entityId)": {
@@ -183,11 +239,12 @@
     },
     "reorderEntities(entityIds)": {
       "trigger": "EntityCard grip drag → ReorderableGrid onReorder; the listed entities swap among the places they already hold in the entities array",
-      "status": "built"
+      "status": "built",
+      "where": "AppDataContext"
     },
     "setStartingAge(age)": {
-      "where": "AppDataContext (AsyncStorage key startingAge; Age {years, months}; defaults to 20 yrs 0 mos until set)",
-      "trigger": "Cases floating starting age bar → EditStartingAgeCard → Done",
+      "where": "AppDataContext (Age {years, months}; 20 yrs 0 mos until set)",
+      "trigger": "Cases floating starting age bar → EditStartingAgeCard → Save",
       "status": "built"
     },
     "run projections for outcomes": {
@@ -206,12 +263,12 @@
     },
     "saveCase(case)": {
       "where": "AppDataContext",
-      "does": "add, or replace same caseId",
+      "does": "add, or replace same caseId; it becomes the most recent case",
       "status": "built"
     },
     "deleteCase(caseId)": {
       "where": "AppDataContext",
-      "does": "remove case AND its entities; throws if not found",
+      "does": "remove case AND its entities, and take it off the recent list, in one change; throws if not found",
       "status": "built"
     },
     "toggleCaseHidden(caseId)": {
@@ -225,12 +282,54 @@
     },
     "reorderCases(caseIds)": {
       "trigger": "CaseCard grip drag → ReorderableGrid onReorder; rewrites caseIndex to each case's place in the list",
-      "status": "built"
+      "status": "built",
+      "where": "AppDataContext"
     },
     "outcomeSeries(history, key, months?)": {
       "where": "Engines/outcomes.ts",
       "returns": "Float64Array, series[month]; months pads past the end of the history (balances hold, per-month = 0)",
       "rules": "OUTCOME_RULES: accounts to add up + credit (flip sign) + perMonth (this month − last month)",
+      "status": "built"
+    },
+    "completeOnboarding()": {
+      "where": "AppDataContext",
+      "trigger": "Onboarding → Skip, or Start using the app",
+      "does": "onboarded = true (saved with the user's data)",
+      "status": "built"
+    },
+    "syncNow()": {
+      "where": "AppDataContext",
+      "trigger": "Settings → Sign out; the app going to the background or coming back",
+      "does": "uploads what's waiting / takes a newer copy from the server, now; resolves when it has tried",
+      "status": "built"
+    },
+    "fetchRow(userId) / uploadRow(userId, data, expectedVersion)": {
+      "where": "Sync/supabase.ts",
+      "returns": "the row | null | 'unreachable'; the new version | 'rejected' (another device saved first) | 'unreachable'",
+      "status": "built"
+    },
+    "nextSyncStep(local, server)": {
+      "where": "Sync/projectionsData.ts",
+      "returns": "'done' | 'takeServer' | 'upload'",
+      "test": "tests/syncTest.ts",
+      "status": "built"
+    },
+    "signIn / signUp / signInWithGoogle / signOut": {
+      "where": "AuthContext",
+      "returns": "what went wrong in words, or null (signUp also says when the email must be confirmed first)",
+      "status": "built"
+    },
+    "restartOnboarding()": {
+      "where": "AppDataContext",
+      "trigger": "Settings → Walkthrough → Show it again",
+      "does": "onboarded = false; the user's data is left as it is",
+      "status": "built"
+    },
+    "exampleCases()": {
+      "where": "TypesAndVariables/exampleCases.ts",
+      "returns": "{ cases, entities }: 'Example life case 1' and 'Example life case 2' with fresh ids",
+      "used by": "newProjectionsData (a brand new account)",
+      "test": "tests/syncTest.ts",
       "status": "built"
     }
   },
@@ -238,24 +337,21 @@
     "TopBar": {
       "file": "components/TopBar.tsx",
       "does": "surface bar rendered once by (tabs)/_layout: Collegiate logo (left), centered title, settings button (right)",
-      "props": [
-        "title"
-      ],
-      "calls": [
-        "router.push('/settings')"
-      ],
-      "status": "built"
+      "props": ["title"],
+      "calls": ["router.push('/settings')"],
+      "status": "built",
+      "exports": ["TOP_BAR_HEIGHT"]
     },
     "TabButton": {
       "file": "components/TabButton.tsx",
-      "props": [
-        "label",
-        "icon",
-        "activeIcon",
-        "isFocused (from TabTrigger)"
-      ],
+      "props": ["label", "icon", "activeIcon", "isFocused (from TabTrigger)"],
       "status": "built",
-      "notes": "ignores TabTrigger's default row style; icon only (label is for screen readers)"
+      "notes": "ignores TabTrigger's default row style; icon only (label is for screen readers)",
+      "exports": [
+        "BOTTOM_MENU_HEIGHT / BOTTOM_MENU_SIDE / BOTTOM_MENU_BORDER",
+        "bottomMenuGap(insetBottom)",
+        "bottomMenuSpace(insetBottom): bottom padding every tab screen's scrolling content needs"
+      ]
     },
     "EntityCard": {
       "file": "components/entityCard.tsx",
@@ -281,61 +377,32 @@
     },
     "EntityTypesMenu": {
       "file": "components/entityTypesMenu.tsx",
-      "props": [
-        "visible",
-        "onVisibleChange",
-        "selected",
-        "onSelect"
-      ],
-      "does": "SideMenu with the entity groups (22; Housing = renting + buyingHome) and their counts, a line between existing types and the rest",
+      "props": ["visible", "onVisibleChange", "selected", "onSelect"],
+      "does": "SideMenu with the entity groups (22; Housing = renting + buyingHome) and their counts: plans and spending first (Income on top), a line, then the existing types",
       "status": "built"
     },
     "SideMenu": {
       "file": "components/sideMenu.tsx",
-      "props": [
-        "visible",
-        "onVisibleChange",
-        "selected",
-        "onSelect",
-        "sections: { key, label, count? }[][]",
-        "name (for screen readers)"
-      ],
+      "props": ["visible", "onVisibleChange", "selected", "onSelect", "sections: { key, label, count? }[][]", "name (for screen readers)"],
       "does": "the floating rounded panel that slides in from the left, with its pull tab, edge swipe and dim; a line between sections",
-      "used by": [
-        "EntityTypesMenu"
-      ],
+      "used by": ["EntityTypesMenu"],
       "status": "built"
     },
     "OutcomesDropdown": {
       "file": "components/outcomesDropdown.tsx",
-      "props": [
-        "selected: OutcomeKey",
-        "onPick",
-        "onClose"
-      ],
+      "props": ["selected: OutcomeKey", "onPick", "onClose"],
       "does": "floating list under the Outcomes floating bar (as wide as the bar) with the seven outcomes; the one showing is tinted and checked; tap outside to close",
       "status": "built"
     },
     "OutcomeChart": {
       "file": "components/outcomeChart.tsx",
-      "props": [
-        "lines: { caseId, caseColor, series }[]",
-        "months",
-        "startingAge",
-        "selectedMonth",
-        "onSelectMonth"
-      ],
+      "props": ["lines: { caseId, caseColor, series }[]", "months", "startingAge", "selectedMonth", "onSelectMonth"],
       "does": "Skia canvas: a line per case by month, grid, a draggable vertical selector with a dot on each line; dollar and age labels are Text around the canvas",
       "status": "built"
     },
     "chartMaths": {
       "file": "components/chartMaths.ts",
-      "exports": [
-        "yAxisFor(min, max) → { min, max, ticks }",
-        "ageTicks(startAgeMonths, months)",
-        "shortDollars",
-        "money"
-      ],
+      "exports": ["yAxisFor(min, max) → { min, max, ticks }", "ageTicks(startAgeMonths, months)", "shortDollars", "money"],
       "status": "built"
     },
     "EditEntityCard (frame)": {
@@ -352,15 +419,15 @@
         "onSubmit",
         "children"
       ],
-      "does": "centered rounded popup (80% wide, max 60% tall, body scrolls): name, case dropdown, type inputs, Cancel + Add/Done",
+      "does": "centered rounded popup on a PopupLayer (80% wide, max 60% tall, body scrolls): name, case dropdown, type inputs, Cancel + Add / Save",
       "status": "built"
     },
     "formFields": {
       "file": "components/formFields.tsx",
       "exports": [
-        "Field",
+        "Field (guide? = an \"i\" button beside the label that opens CostGuidePopup)",
         "TextField",
-        "NumberField (kind: dollars | percent | signedPercent | years | months | whole | decimal | positive | number; checks its own text)",
+        "NumberField (kind: dollars | percent | signedPercent | years | months | whole | decimal | positive | number; checks its own text; guide? passes to Field)",
         "AgeField (checks its own text)",
         "AgeWindowFields (start + end age)",
         "LoanAny3Fields",
@@ -370,7 +437,7 @@
         "ColorDropdown",
         "ChoiceDropdown",
         "Segmented",
-        "everything from formParsing.ts (parse*, read*, optional, parseAgeWindow, parseLoanText, ERRORS, …)"
+        "everything from formParsing.ts"
       ],
       "status": "built"
     },
@@ -422,58 +489,35 @@
     },
     "CaseEntitiesPanel": {
       "file": "components/caseEntitiesPanel.tsx",
-      "props": [
-        "caseColor",
-        "entities"
-      ],
+      "props": ["caseColor", "entities"],
       "does": "the box that comes out from under an open case card: each of the case's entities with its name, type and entitySummary facts",
       "status": "built"
     },
     "EditCaseCard": {
       "file": "components/editCaseCard.tsx",
-      "props": [
-        "editType: 'add' | 'edit'",
-        "existingCase (edit)",
-        "onClose"
-      ],
-      "layout": "centered landscape popup: 'New case' / 'Edit case', name + color dropdown side by side, Cancel + Done",
+      "props": ["editType: 'add' | 'edit'", "existingCase (edit)", "onClose"],
+      "layout": "centered landscape popup on a PopupLayer: 'New case' / 'Edit case', name + color dropdown side by side, Cancel + Save",
       "status": "built"
     },
     "cardControls": {
       "file": "components/cardControls.tsx",
-      "exports": [
-        "ActionWell",
-        "GripHandle"
-      ],
-      "used by": [
-        "EntityCard",
-        "CaseCard"
-      ],
+      "exports": ["ActionWell", "GripHandle"],
+      "used by": ["EntityCard", "CaseCard"],
       "notes": "ActionWell: filled well + lift; activeColor = hidden outline/tint; opensCard = trailing chevron. GripHandle: PanResponder; hold 120ms to pick up (haptic), then onMove(dx, dy) until onPutDown.",
       "status": "built"
     },
     "ConfirmDialog": {
       "file": "components/confirmDialog.tsx",
-      "props": [
-        "title",
-        "message",
-        "confirmLabel",
-        "onConfirm",
-        "onCancel"
-      ],
-      "used for": [
-        "delete entity",
-        "delete case (says how many entities go with it)"
-      ],
+      "props": ["title", "message", "confirmLabel", "onConfirm", "onCancel"],
+      "used for": ["delete entity", "delete case (says how many entities go with it)"],
       "status": "built"
     },
     "screenParts": {
       "file": "components/screenParts.tsx",
       "exports": [
-        "EmptyState",
-        "FloatingRow (green plus + a bar, floating over the top of the Cases, Entities and Outcomes lists; no onAdd = no plus; prominent = taller + outlined)",
-        "FLOATING_ROW_TOP / FLOATING_ROW_HEIGHT / FLOATING_ROW_SPACE",
-        "PROMINENT_ROW_SPACE"
+        "EmptyState (icon, title, message, optional action button)",
+        "FloatingRow (an outlined bar + a green plus on its right, floating over the top of the Cases, Entities and Outcomes lists; no onAdd = no plus)",
+        "FLOATING_ROW_TOP / FLOATING_ROW_HEIGHT / FLOATING_ROW_SPACE"
       ],
       "status": "built"
     },
@@ -498,53 +542,94 @@
     },
     "AddOptionsMenu": {
       "file": "components/addOptionsMenu.tsx",
-      "props": [
-        "options",
-        "onPick",
-        "onClose"
-      ],
-      "does": "floating list under the floating row's plus when the entity group has more than one type (Housing: Renting / Buying)",
+      "props": ["options", "onPick", "onClose"],
+      "does": "floating list under the floating row's plus (top right) when the entity group has more than one type (Housing: Renting / Buying)",
       "status": "built"
     },
     "EditStartingAgeCard": {
       "file": "components/editStartingAgeCard.tsx",
-      "props": [
-        "onClose"
-      ],
-      "does": "centered popup: years + months, Cancel + Done (saves startingAge)",
+      "props": ["onClose"],
+      "does": "centered popup on a PopupLayer: years + months, Cancel + Save (saves startingAge)",
       "status": "built"
     },
     "CollegiateLogo": {
       "file": "components/collegiateLogo.tsx",
-      "props": [
-        "height",
-        "color"
-      ],
+      "props": ["height", "color"],
       "does": "the Collegiate wordmark as one Skia path (from assets/CollegiateLogo.svg), tinted with the given color",
+      "status": "built"
+    },
+    "theme": {
+      "file": "components/theme.ts",
+      "exports": ["PALETTES", "themeVars", "LIFTS", "CASE_BORDER_WIDTHS", "CASE_COLORS", "caseColorName", "withAlpha", "textOnColor"],
+      "does": "the only place hex values live; read through useTheme() and the tailwind token classes",
+      "status": "built"
+    },
+    "formParsing": {
+      "file": "components/formParsing.ts",
+      "does": "text ↔ number helpers for the edit cards (parse*, read*, optional, parseAgeWindow, parseLoanText, ageLabel, ageInMonths, formatDollars, ERRORS); no React, re-exported by formFields",
+      "status": "built"
+    },
+    "PopupLayer": {
+      "file": "components/popupLayer.tsx",
+      "props": ["onClose", "style? (room around the card)", "children (the card)"],
+      "exports": ["default PopupLayer"],
+      "does": "Modal + dim + the card centered above the keyboard; slides with the keyboard (iOS); a tap on the dim closes",
+      "used by": ["EditEntityCard", "EditCaseCard", "EditStartingAgeCard"],
+      "status": "built"
+    },
+    "CostGuidePopup": {
+      "file": "components/costGuidePopup.tsx",
+      "props": ["guide: CostGuide", "onClose"],
+      "does": "floating card over the edit popup: a spending guide's title, intro, tables, notes and sources; opened by the \"i\" button beside a Field's label",
+      "status": "built"
+    },
+    "costGuides": {
+      "file": "TypesAndVariables/costGuides.ts",
+      "exports": [
+        "CostGuide / GuideTable types",
+        "KID_COST_GUIDE",
+        "GROCERIES_GUIDE",
+        "DINING_OUT_GUIDE",
+        "PET_FOOD_GUIDE",
+        "PET_VET_GUIDE",
+        "groceriesMonthly / diningOutMonthly / kidYearlyCosts (the maths, for the test)"
+      ],
+      "does": "what people in the Southeast typically spend, worked out from sourced constants; guide data only, the engines never read it",
+      "test": "tests/costGuidesTest.ts",
+      "used by": ["editKidCard", "editFoodCard", "editPetCard"],
+      "status": "built"
+    },
+    "onboarding pieces": {
+      "file": "app/onboarding.tsx (not shared; all in the route file)",
+      "pictures": [
+        "CasesPicture",
+        "EntitiesPicture (the Income group)",
+        "OutcomesPicture (runs the engine once reached; the real chart)",
+        "BottomMenuPicture"
+      ],
+      "guide": [
+        "Callout (the pointed accent box + its arrow, drawn with Skia; optional Next button)",
+        "Ring (pulsing ring around a spot)",
+        "Target (Ring + the one pressable spot)",
+        "SlideHint (the sliding hand)",
+        "Locked (faded, untouchable boxes)"
+      ],
+      "popups": [
+        "NewCasePopup (its own copy of the case popup's layout, on PopupLayer)",
+        "NewIncomePopup (its own copy of the entity popup frame, on PopupLayer; one box at a time: IncomeStop)"
+      ],
       "status": "built"
     }
   },
   "design": {
-    "source": "../ColorsGuide.md, ../FontsGuide.md",
+    "_about": "The look and the UI rules are in design.md. This is only where the pieces live.",
+    "sources": "../../ColorsGuide.md, ../../FontsGuide.md",
     "palettes": "components/theme.ts (light + dark hex; the only place color values live)",
-    "how": "tailwind.config.js colors = rgb(var(--token)); ThemeProvider sets the vars on the root View → every class switches with the theme",
-    "tokens": "canvas, surface, inset, hairline, edge, slate, charcoal, ink, muted, onDark, onAccent, danger, accent{DEFAULT,tint,ink}",
-    "non-class colors": "useTheme().colors (icons, placeholders)",
-    "lift": "useTheme().lift (light: shadow; dark: 1px light top edge)",
-    "accent": "sky (change in components/theme.ts)",
+    "classes": "tailwind.config.js colors = rgb(var(--token)); ThemeProvider sets the vars on the root View",
+    "tokens": "canvas, surface, bar, inset, hairline, edge, slate, charcoal, ink, muted, onDark, onAccent, danger, green, accent{DEFAULT,tint,ink}",
+    "non-class values": "useTheme() → colors, lift, scheme, caseBorderWidth",
     "fonts": "font-inter, font-inter-medium, font-inter-semibold, font-inter-bold",
     "icons": "@expo/vector-icons Ionicons",
-    "case colors": "CASE_COLORS in components/theme.ts (the 11 accent bases)",
-    "reference": "design reference pasted by the user (EntityCard / EditEntityCard / theme): adopted as look, not code",
-    "rules": [
-      "case-color outlines: useTheme().caseBorderWidth (1px dark, 1.5px light) on entity tiles, case cards, edit popups, outcome rows; case cards also lift in light mode",
-      "pressables: lift + active:opacity feedback; ones that open something get a chevron",
-      "inputs: filled inset, h-14, rounded-2xl; accent outline on focus; danger outline + error text when invalid",
-      "edit entity popup (centered): plain header with a case-color line under it; footer Cancel (outlined) + primary (accent, wider, chevron)",
-      "hidden = faded text + case-color outline/tint on the hide button",
-      "destructive actions confirm first (ConfirmDialog)",
-      "haptics: grip pick-up, hide toggle, delete confirm, holding a card to edit it"
-    ],
     "haptics": "expo-haptics"
   }
 }

@@ -5,7 +5,7 @@ import { useTheme } from "../context/ThemeContext";
 import { OUTCOME_KEYS, OUTCOME_LABELS } from "../TypesAndVariables/outcomeLabels";
 import type { OutcomeKey } from "../TypesAndVariables/types";
 import { TOP_BAR_HEIGHT } from "./TopBar";
-import { FLOATING_ROW_TOP, PROMINENT_ROW_HEIGHT } from "./screenParts";
+import { FLOATING_ROW_HEIGHT, FLOATING_ROW_TOP } from "./screenParts";
 
 type OutcomesDropdownProps = {
   selected: OutcomeKey;
@@ -32,7 +32,7 @@ export default function OutcomesDropdown({ selected, onPick, onClose }: Outcomes
         className={`rounded-2xl ${fill}`}
         style={[
           scheme === "light" ? lift : null,
-          { position: "absolute", top: insets.top + TOP_BAR_HEIGHT + FLOATING_ROW_TOP + PROMINENT_ROW_HEIGHT + 6, left: 16, right: 16 },
+          { position: "absolute", top: insets.top + TOP_BAR_HEIGHT + FLOATING_ROW_TOP + FLOATING_ROW_HEIGHT + 6, left: 16, right: 16 },
         ]}
       >
         <View className="overflow-hidden rounded-2xl border border-edge">

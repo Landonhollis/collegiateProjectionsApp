@@ -310,3 +310,25 @@ export type EntityEditType = 'add' | 'edit';
 export type EditEntityCardProps =
   | { entityEditType: 'add'; entity?: undefined; onClose: () => void }
   | { entityEditType: 'edit'; entity: Entity; onClose: () => void };
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Saved data (phone storage ↔ Supabase; see Sync/projectionsData.ts)
+// ═════════════════════════════════════════════════════════════════════════════
+/** Everything this app saves for one user: one object, on the phone and in the user's Supabase row. */
+export type ProjectionsData = {
+  schemaVersion: number; // the shape of this object (SCHEMA_VERSION); goes up when the shape changes
+  editedAt: number; // when it was last changed on a device (ms since 1970); the newer copy wins a conflict
+  onboarded: boolean; // true once the user has finished onboarding
+  startingAge: Age;
+  cases: Case[];
+  entities: Entity[];
+  recentCaseIds: string[]; // most recently used first
+};
+/** What the phone keeps for one user: their data, plus where it stands against the server. */
+export type LocalSlot = {
+  data: ProjectionsData;
+  uploadWaiting: boolean; // true = the phone has changes the server doesn't have yet
+  syncedVersion: number | null; // the server row's version when the two last matched; null = no row yet
+};
+/** The user's row for this app in Supabase (table app_data). */
+export type ServerRow = { data: ProjectionsData; version: number };

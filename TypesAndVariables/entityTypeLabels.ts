@@ -62,7 +62,10 @@ const HOUSING: EntityGroup = {
   ],
 };
 
-/** Every group, in menu order: the entity types in order, with Housing where renting was. */
+/**
+ * Every group: the entity types in order, with Housing where renting was.
+ * The menu shows them in two sections, and puts the second one first (see components/entityTypesMenu.tsx).
+ */
 export const ENTITY_GROUPS: EntityGroup[] = ENTITY_TYPES.filter((type) => type !== 'buyingHome').map((type) =>
   type === 'renting' ? HOUSING : { key: type, label: ENTITY_TYPE_LABELS[type], options: [{ type, label: ENTITY_TYPE_LABELS[type] }] },
 );

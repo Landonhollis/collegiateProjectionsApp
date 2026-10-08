@@ -42,7 +42,7 @@ export default function EditIncomeCard(props: EditEntityCardProps) {
       <NumberField
         label="Retirement return"
         hint="yearly, blank = average"
-        kind="signedPercent"
+        kind="returnPercent"
         placeholder={String(INVESTING.defaultRealReturnPct)}
         value={t.retirementReturnPct}
         onChange={set("retirementReturnPct")}

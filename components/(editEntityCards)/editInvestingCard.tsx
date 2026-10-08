@@ -12,7 +12,7 @@ export default function EditInvestingCard(props: EditEntityCardProps) {
   return (
     <EditEntityCard {...card.frame}>
       <NumberField label="Starting amount" hint="paid in when you start" kind="dollars" value={t.initial} onChange={set("initial")} />
-      <NumberField label="Yearly return" hint="after inflation" kind="signedPercent" value={t.returnPct} onChange={set("returnPct")} />
+      <NumberField label="Yearly return" hint="after inflation" kind="returnPercent" value={t.returnPct} onChange={set("returnPct")} />
 
       <SectionLabel>Putting money in</SectionLabel>
       <NumberField label="Monthly deposit" hint="optional" kind="dollars" value={t.contribution} onChange={set("contribution")} />

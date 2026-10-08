@@ -27,8 +27,8 @@ type Editor = { entityEditType: "add"; type: EntityTypeKey } | { entityEditType:
 
 // Entities tab: a grid of square entity cards for one entity group at a time. Drag a card by its grip to reorder.
 // A group is one entity type, except Housing, which shows renting and buying together (each card says which it is).
-// The side menu (floating picker, or pull its tab on the left edge) switches the group; the plus beside it / Edit open the
-// entity type's edit card (the plus asks which type first when the group has more than one); Delete asks first.
+// The side menu (floating picker, or pull its tab on the left edge) switches the group; the plus beside it / Edit
+// open the entity type's edit card (the plus asks which type first when the group has more than one); Delete asks first.
 export default function EntitiesScreen() {
   const { cases, entities, deleteEntity, toggleEntityHidden, reorderEntities } = useAppData();
   const { colors } = useTheme();
@@ -117,20 +117,23 @@ export default function EntitiesScreen() {
           empty={emptyState()}
         />
 
-        {/* Floats so the cards scroll under it: the plus (add an entity), then the type picker (opens the type menu). */}
+        {/* Floats so the cards scroll under it: the type picker (opens the type menu), then the plus (add an entity).
+            The bar is made hard to miss (the user's call), because it's the only way to the other entity types:
+            the type's name in the middle in big text, with a down arrow beside it. */}
         <FloatingRow
           onAdd={startAdd}
-          addDisabled={cases.length === 0}
+          addDisabled={cases.length === 0} // no cases yet = nothing to add an entity to
           addLabel={`Add ${label.toLowerCase()}`}
           onPressBar={() => setMenuOpen(true)}
           barLabel={`Showing ${label}. Change`}
         >
-          <Ionicons name="menu" size={20} color={colors.ink} />
-          <Text className="ml-2.5 flex-1 font-inter-semibold text-base text-ink" numberOfLines={1}>
-            {label}
-          </Text>
-          {shown.length > 0 ? <Text className="mr-1.5 font-inter-semibold text-sm text-muted">{shown.length}</Text> : null}
-          <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+          <View className="flex-1 flex-row items-center justify-center gap-1.5">
+            <Text className="shrink font-inter-bold text-[22px] leading-7 text-ink" numberOfLines={1}>
+              {label}
+            </Text>
+            {/* Says the bar opens a list to choose from. */}
+            <Ionicons name="chevron-down" size={22} color={colors.ink} />
+          </View>
         </FloatingRow>
       </View>
 

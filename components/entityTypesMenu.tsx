@@ -23,7 +23,8 @@ export default function EntityTypesMenu({ visible, onVisibleChange, selected, on
   }
   const rows: SideMenuRow[] = ENTITY_GROUPS.map((group) => ({ key: group.key, label: group.label, count: counts.get(group.key) ?? 0 }));
 
-  // The first 8 groups are what you already have (type codes 01–08); the rest are plans and spending.
+  // The first 8 groups are what you already have (the "Existing …" types, codes 01–08); the rest are plans and spending.
+  // Plans and spending go on top, starting with Income, and the existing ones at the bottom (the user's call).
   // No headings: a line between the two sections marks the break.
   return (
     <SideMenu
@@ -31,7 +32,7 @@ export default function EntityTypesMenu({ visible, onVisibleChange, selected, on
       onVisibleChange={onVisibleChange}
       selected={selected}
       onSelect={onSelect}
-      sections={[rows.slice(0, 8), rows.slice(8)]}
+      sections={[rows.slice(8), rows.slice(0, 8)]}
       name="entity types"
     />
   );

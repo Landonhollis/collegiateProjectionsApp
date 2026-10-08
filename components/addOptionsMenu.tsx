@@ -13,7 +13,7 @@ type AddOptionsMenuProps = {
   onClose: () => void;
 };
 
-// The small list that drops down under the floating row's plus when there's more than one thing to add
+// The small list that drops down under the floating row's plus (top right) when there's more than one thing to add
 // (e.g. Housing: Renting or Buying). Floats over the screen; tap outside to close it.
 export default function AddOptionsMenu({ options, onPick, onClose }: AddOptionsMenuProps) {
   const { colors, lift, scheme } = useTheme();
@@ -28,7 +28,7 @@ export default function AddOptionsMenu({ options, onPick, onClose }: AddOptionsM
         className="rounded-2xl bg-surface"
         style={[
           scheme === "light" ? lift : null,
-          { position: "absolute", top: insets.top + TOP_BAR_HEIGHT + FLOATING_ROW_TOP + FLOATING_ROW_HEIGHT + 6, left: 16, width: 220 },
+          { position: "absolute", top: insets.top + TOP_BAR_HEIGHT + FLOATING_ROW_TOP + FLOATING_ROW_HEIGHT + 6, right: 16, width: 220 },
         ]}
       >
         <View className="overflow-hidden rounded-2xl border border-hairline">

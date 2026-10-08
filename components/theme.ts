@@ -15,6 +15,7 @@ const light = {
   inset: "#EBEBEC",
   hairline: "#E2E5E8",
   edge: "#96A0AB",
+  rowEdge: "#96A0AB", // the outline of the floating row's bar at the top of each tab screen (same as edge in light mode)
   slate: "#4A5A6E",
   charcoal: "#333A41",
   ink: "#27313C",
@@ -30,14 +31,15 @@ const light = {
 export type Palette = typeof light;
 
 const dark: Palette = {
-  canvas: "#20242A",
-  surface: "#2A2F36",
-  bar: "#31373E", // a step lighter than surface, so the bars stand off the cards
+  canvas: "#16191E",
+  surface: "#242930",
+  bar: "#2B3037", // a step lighter than surface, so the bars stand off the cards
   inset: "#31373E",
   hairline: "#373E46",
   edge: "#5A646F",
+  rowEdge: "#F2F3F5", // the same as ink, the text color (the user's call), so the three bars are easy to notice
   slate: "#4A5A6E",
-  charcoal: "#2A2F36", // light mode only in the guide; dark falls back to surface
+  charcoal: "#242930", // light mode only in the guide; dark falls back to surface
   ink: "#F2F3F5",
   muted: "#9A9CA0",
   onDark: "#F2F3F5",

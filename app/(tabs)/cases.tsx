@@ -20,7 +20,7 @@ import type { Case } from "../../TypesAndVariables/types";
 type Editor = { editType: "add" } | { editType: "edit"; existingCase: Case } | null;
 
 // Cases tab: a list of full-width case cards in caseIndex order. Drag a card by its grip to reorder.
-// A row floats over the top of the list: the plus (new case) and the starting age (shared by every case; tap to change it).
+// A row floats over the top of the list: the starting age (shared by every case; tap to change it), then the plus (new case).
 // Tapping a card shows that case's entities under it (one case at a time; tap it again to put them away).
 // The plus / Edit open the edit case popup;
 // Delete asks first (it also deletes the case's entities).
@@ -93,7 +93,7 @@ export default function CasesScreen() {
           }
         />
 
-        {/* Floats so the cards scroll under it: the plus (new case), then the starting age (tap to change it). */}
+        {/* Floats so the cards scroll under it: the starting age (tap to change it), then the plus (new case). */}
         <FloatingRow
           onAdd={() => setEditor({ editType: "add" })}
           addLabel="New case"

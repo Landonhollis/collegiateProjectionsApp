@@ -8,7 +8,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.landonhollis.collegiateprojections",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -34,7 +34,8 @@
     "owner": "landonhollis",
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ]
   }
 }

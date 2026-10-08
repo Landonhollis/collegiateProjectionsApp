@@ -36,6 +36,7 @@ import {
   type AgeText,
   type LoanText,
 } from "../formParsing";
+import { HOME } from "../../TypesAndVariables/presetVars";
 import type {
   Age,
   BirthdayChristmasInput,
@@ -153,7 +154,7 @@ export type ExistingVehicleText = {
 };
 export const existingVehicleForm: EntityForm<ExistingVehicleText, ExistingVehicleInput> = {
   read: (saved) => ({
-    financing: readChoice(saved?.financing, ["loan", "full"], "loan"),
+    financing: readChoice(saved?.financing, ["loan", "full"], "full"), // a new one starts on paid in full, not on debt
     price: readDollarsText(saved?.totalVehicleValue),
     downPct: readNumberText(saved?.downPaymentPct),
     termMonths: readNumberText(saved?.loanTermMonths),
@@ -349,12 +350,16 @@ export const incomeForm: EntityForm<IncomeText, Omit<IncomeInput, "retirementAcc
   },
 };
 
+// ── Housing (renting and buying a home) ──────────────────────────────────────
+/** What a new renting or buying entity's utilities box starts with: the average monthly bill (HOME.utilitiesMonthly), in whole dollars. */
+export const AVERAGE_UTILITIES_TEXT = String(Math.round(HOME.utilitiesMonthly));
+
 // ── Renting ──────────────────────────────────────────────────────────────────
 export type RentingText = { rent: string; utilities: string; junkFees: string; startAge: AgeText; endAge: AgeText };
 export const rentingForm: EntityForm<RentingText, RentingInput> = {
   read: (saved) => ({
     rent: readDollarsText(saved?.rentMonthly),
-    utilities: readDollarsText(saved?.utilitiesMonthly),
+    utilities: saved ? readDollarsText(saved.utilitiesMonthly) : AVERAGE_UTILITIES_TEXT, // new: the average, to change or clear
     junkFees: readDollarsText(saved?.junkFeesMonthly),
     startAge: readAgeText(saved?.startAge),
     endAge: readAgeText(saved?.endAge),
@@ -379,7 +384,7 @@ export type BuyingHomeText = {
   downPct: string; // mortgage only
   termYears: string; // mortgage only
   ratePct: string; // mortgage only
-  utilities: string; // optional: blank = the preset
+  utilities: string; // optional: blank = the preset. A new one starts with the preset filled in
   sellAge: AgeText; // optional
 };
 export const buyingHomeForm: EntityForm<BuyingHomeText, BuyingHomeInput> = {
@@ -392,7 +397,7 @@ export const buyingHomeForm: EntityForm<BuyingHomeText, BuyingHomeInput> = {
       downPct: isCash ? "" : readNumberText(saved?.downPaymentPct),
       termYears: isCash ? "" : readNumberText(saved?.mortgageTermYears),
       ratePct: isCash ? "" : readNumberText(saved?.interestRatePct),
-      utilities: readDollarsText(saved?.utilitiesMonthly),
+      utilities: saved ? readDollarsText(saved.utilitiesMonthly) : AVERAGE_UTILITIES_TEXT, // new: the average, to change
       sellAge: readAgeText(saved?.sellAge),
     };
   },
@@ -429,7 +434,7 @@ export type BuyingCarText = {
 };
 export const buyingCarForm: EntityForm<BuyingCarText, BuyingCarInput> = {
   read: (saved) => ({
-    financing: readChoice(saved?.financing, ["loan", "full"], "loan"),
+    financing: readChoice(saved?.financing, ["loan", "full"], "full"), // a new one starts on paid in full, not on debt
     purchaseAge: readAgeText(saved?.purchaseAge),
     price: readDollarsText(saved?.totalVehicleValue),
     downPct: readNumberText(saved?.downPaymentPct),
@@ -502,7 +507,7 @@ export type EducationText = {
 };
 export const educationForm: EntityForm<EducationText, EducationInput> = {
   read: (saved) => ({
-    paymentType: readChoice(saved?.paymentType, ["loan", "full"], "loan"),
+    paymentType: readChoice(saved?.paymentType, ["loan", "full"], "full"), // a new one starts on pay in full, not on debt
     costPerSemester: readDollarsText(saved?.costPerSemester),
     semesters: readNumberText(saved?.numberOfSemesters),
     startAge: readAgeText(saved?.startAge),

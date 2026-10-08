@@ -15,7 +15,7 @@ import { money } from "../../components/chartMaths";
 import { ageInMonths } from "../../components/formParsing";
 import OutcomeChart from "../../components/outcomeChart";
 import OutcomesDropdown from "../../components/outcomesDropdown";
-import { EmptyState, FloatingRow, PROMINENT_ROW_SPACE } from "../../components/screenParts";
+import { EmptyState, FLOATING_ROW_SPACE, FloatingRow } from "../../components/screenParts";
 import type { Age, Case, ComputedCase, Entity, OutcomeKey, OutcomeSeries } from "../../TypesAndVariables/types";
 
 /** The engine's results, plus the data they were worked out from (to tell when they're out of date). */
@@ -88,8 +88,8 @@ export default function OutcomesScreen() {
           </View>
         )}
 
-        {/* Floats so the chart scrolls under it: the outcome that's showing (opens the outcomes dropdown). No plus here, and it's the taller, outlined bar. */}
-        <FloatingRow prominent onPressBar={() => setDropdownOpen(true)} barLabel={`Showing ${label}. Change`}>
+        {/* Floats so the chart scrolls under it: the outcome that's showing (opens the outcomes dropdown). No plus here. */}
+        <FloatingRow onPressBar={() => setDropdownOpen(true)} barLabel={`Showing ${label}. Change`}>
           <Ionicons name="menu" size={22} color={colors.ink} />
           <Text className="ml-3 flex-1 font-inter-bold text-lg text-ink" numberOfLines={1}>
             {label}
@@ -181,7 +181,7 @@ function OutcomesView({ projection, outcomeKey }: { projection: Projection; outc
     <ScrollView
       contentContainerStyle={{
         flexGrow: 1,
-        paddingTop: PROMINENT_ROW_SPACE,
+        paddingTop: FLOATING_ROW_SPACE,
         paddingBottom: bottomMenuSpace(insets.bottom),
         paddingHorizontal: 16,
         gap: 12,

@@ -18,13 +18,20 @@ masterEngine({ startingAge, cases, entities })
 - `masterEngine.ts`: entity IDs, links entities to cases, investment account assignment, runs everything per case.
 - `outcomes.ts`: `outcomeSeries(history, key, months?)` turns one case's history into what the outcomes screen shows
   (net worth, liquid cash, expenses per month, …). The seven outcomes and what each adds up are listed at its top.
+- `costGuides.ts`: the spending guides behind the "i" buttons on the kid, food and pet edit cards (Southeast averages, each with its source).
+  Guide numbers only; the engines never read them.
+- `exampleCases.ts`: the two example cases (and their entities) every new account starts with.
+- `Sync/projectionsData.ts`: the one object saved per user (`ProjectionsData`), checking saved data, and the rules for keeping
+  the phone's copy and the Supabase copy in step. `Sync/supabase.ts`: the Supabase client and the three calls (read / add / replace my row).
 - `aiContext/`: handoff docs for the app (start with `aiContext/README.md`). `aiContext/appMap.json` = routes, navigation,
   state, operations, components with build status. Update these when any of those change.
-- Tests (`npx tsx tests/<file>.ts`, no framework). Run all nine after any change:
+- Tests (`npx tsx tests/<file>.ts`, no framework). Run all eleven after any change:
   `entityEnginesTest`, `engineSpecTest` (hand calcs + reference models), `coaheTest`, `masterEngineTest`, `outcomesTest`, `chartMathsTest` (the outcomes chart's axes and labels),
   `propertyTest` (seeded random fuzz; `SEED=`, `PER_TYPE=`, `CASES=` env vars),
   `entityFormsTest` (every edit card's form: text → engine inputs → runs in its engine → reads back),
-  `entitySummaryTest` (the facts shown on each entity card).
+  `entitySummaryTest` (the facts shown on each entity card),
+  `costGuidesTest` (the spending guides: hand calcs from the source numbers),
+  `syncTest` (the saved-data object: reading it back, malformed data, the sync rules).
 
 ## Rules
 - Money is whole dollars. Debit = +, credit = −. Every journal entry sums to 0.

@@ -14,14 +14,16 @@ import type { EntityForm, FormInputs } from "./entityForms";
 // `type` and `form` must belong together: the form's inputs have to be that type's engine inputs
 // (FormInputs<K>), so a card can't save something its engine doesn't read.
 export function useEntityCard<K extends EntityTypeKey, Text>(props: EditEntityCardProps, type: K, form: EntityForm<Text, FormInputs<K>>) {
-  const { saveEntity } = useAppData();
+  const { saveEntity, defaultCaseId } = useAppData();
   const existing = props.entity;
   if (existing && entityTypeOf(existing.entityId) !== type) {
     throw new Error(`The ${type} edit card was opened for entity "${existing.entityId}", which is a ${entityTypeOf(existing.entityId)}`);
   }
 
-  const [name, setName] = useState(existing?.name ?? "");
-  const [caseId, setCaseId] = useState<string | null>(existing?.caseId ?? null);
+  // A new entity starts out named after its type ("Food"), so nobody has to think of a name. It can be typed over.
+  const [name, setName] = useState(existing?.name ?? ENTITY_TYPE_LABELS[type]);
+  // A new entity starts out in the case used last (see defaultCaseId), so the case rarely has to be picked. It can be changed.
+  const [caseId, setCaseId] = useState<string | null>(existing?.caseId ?? defaultCaseId);
   const [text, setText] = useState<Text>(() => form.read(existing?.inputs));
 
   const inputs = form.toInputs(text); // null while anything is missing or not valid

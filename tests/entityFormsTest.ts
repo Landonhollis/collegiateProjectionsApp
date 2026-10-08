@@ -11,6 +11,7 @@ import * as F from '../components/(editEntityCards)/entityForms';
 import type { EntityForm } from '../components/(editEntityCards)/entityForms';
 import { EMPTY_AGE, EMPTY_LOAN, parseAgeWindow, parseLoanText, parseSignedPercent, optional, parseDollars, type AgeText, type LoanInputs, type LoanText } from '../components/formParsing';
 import type { Age, Case, EntityTypeKey } from '../TypesAndVariables/types';
+import { HOME } from '../TypesAndVariables/presetVars';
 
 // ── tiny harness ─────────────────────────────────────────────────────────────
 let passed = 0, failed = 0;
@@ -239,6 +240,12 @@ const investText: F.InvestingText = {
   initial: '1,000', returnPct: '6', contributionStartAge: age('25', '0'), contribution: '', contributionEndAge: EMPTY_AGE,
   withdrawal: '', withdrawalStartAge: EMPTY_AGE, withdrawalEndAge: EMPTY_AGE,
 };
+check(F.rentingForm.read(undefined).utilities === String(Math.round(HOME.utilitiesMonthly)), 'renting: a new one starts with the average utilities');
+check(F.buyingHomeForm.read(undefined).utilities === String(Math.round(HOME.utilitiesMonthly)), 'buyingHome: a new one starts with the average utilities');
+check(F.rentingForm.read({ rentMonthly: 900, utilitiesMonthly: null }).utilities === '', 'renting: a saved blank utilities stays blank');
+check(F.existingVehicleForm.read(undefined).financing === 'full' && F.buyingCarForm.read(undefined).financing === 'full', 'vehicles: a new one starts on paid in full');
+check(F.educationForm.read(undefined).paymentType === 'full', 'education: a new one starts on pay in full');
+check(F.buyingCarForm.read({ financing: 'loan' }).financing === 'loan', 'buyingCar: a saved loan stays a loan');
 check(F.investingForm.read(undefined).initial === '0', 'investing: a new account starts with $0 paid in up front');
 testForm('investing', F.investingForm,
   [{ name: 'lump sum', text: investText,

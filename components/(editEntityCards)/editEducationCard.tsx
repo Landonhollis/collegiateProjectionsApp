@@ -20,7 +20,7 @@ export default function EditEducationCard(props: EditEntityCardProps) {
         <Segmented options={PAYMENT_OPTIONS} value={t.paymentType} onChange={set("paymentType")} />
       </Field>
       <NumberField label="Cost per semester" kind="dollars" value={t.costPerSemester} onChange={set("costPerSemester")} />
-      <NumberField label="Semesters" kind="whole" value={t.semesters} onChange={set("semesters")} />
+      <NumberField label="Semesters left" kind="whole" value={t.semesters} onChange={set("semesters")} />
       <AgeField label="Age you start" value={t.startAge} onChange={set("startAge")} />
       {t.paymentType === "loan" ? (
         <>

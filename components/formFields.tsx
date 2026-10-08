@@ -2,8 +2,11 @@ import { useRef, useState, type ReactNode } from "react";
 import { Keyboard, Modal, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions, type ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
+import CostGuidePopup from "./costGuidePopup";
+import { SETTLE_AFTER_KEYBOARD_MS } from "./popupLayer";
 import { CASE_COLORS, caseColorName } from "./theme";
 import type { Case } from "../TypesAndVariables/types";
+import type { CostGuide } from "../TypesAndVariables/costGuides";
 import {
   ERRORS,
   fieldError,
@@ -29,16 +32,44 @@ export * from "./formParsing";
 // Look (from the design reference): filled inset boxes, 56px tall, 16px corners. A box outlines in the
 // accent while focused and in danger when its text doesn't parse; the error text says why in plain words.
 
-/** Label above any input (+ optional hint on the right, error text below). Keep labels to one or two words. */
-export function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string | null; children: ReactNode }) {
+type FieldProps = {
+  label: string;
+  hint?: string;
+  error?: string | null;
+  /** Adds an "i" button beside the label that opens this guide to what people typically spend (see costGuides.ts). */
+  guide?: CostGuide;
+  children: ReactNode;
+};
+
+/** Label above any input (+ optional "i" guide button, hint on the right, error text below). Keep labels to one or two words. */
+export function Field({ label, hint, error, guide, children }: FieldProps) {
+  const { colors } = useTheme();
+  const [guideOpen, setGuideOpen] = useState(false);
   return (
     <View className="mb-5">
-      <View className="mb-2 flex-row items-baseline justify-between">
-        <Text className="font-inter-semibold text-[13px] text-muted">{label}</Text>
+      <View className="mb-2 flex-row items-center justify-between">
+        <View className="flex-row items-center">
+          <Text className="font-inter-semibold text-[13px] text-muted">{label}</Text>
+          {guide ? (
+            <Pressable
+              className="ml-1.5 active:opacity-60"
+              onPress={() => {
+                Keyboard.dismiss(); // the guide opens over the whole screen; the keyboard would sit on top of it
+                setGuideOpen(true);
+              }}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={`${label}: how much people spend`}
+            >
+              <Ionicons name="information-circle-outline" size={19} color={colors.accentInk} />
+            </Pressable>
+          ) : null}
+        </View>
         {hint ? <Text className="font-inter text-xs text-muted">{hint}</Text> : null}
       </View>
       {children}
       {error ? <Text className="mt-1.5 font-inter-medium text-xs text-danger">{error}</Text> : null}
+      {guide && guideOpen ? <CostGuidePopup guide={guide} onClose={() => setGuideOpen(false)} /> : null}
     </View>
   );
 }
@@ -58,6 +89,8 @@ type InputBoxProps = {
   invalid?: boolean;
   autoCapitalize?: "none" | "words" | "sentences";
   onBlur?: () => void;
+  /** Tapping into the box selects all of its text, so typing replaces it. */
+  selectOnFocus?: boolean;
   accessibilityLabel: string;
 };
 
@@ -84,6 +117,7 @@ function InputBox(props: InputBoxProps) {
         keyboardType={props.keyboardType ?? "default"}
         autoCapitalize={props.autoCapitalize ?? "sentences"}
         returnKeyType="done"
+        selectTextOnFocus={props.selectOnFocus}
         onFocus={() => setFocused(true)}
         onBlur={() => {
           setFocused(false);
@@ -102,26 +136,40 @@ export function TextField({
   value,
   onChange,
   placeholder,
+  selectOnFocus,
 }: {
   label: string;
   value: string;
   onChange: (text: string) => void;
   placeholder?: string;
+  /** Tapping into the box selects all of its text, so typing replaces it (for a filled-in default). */
+  selectOnFocus?: boolean;
 }) {
   return (
     <Field label={label}>
-      <InputBox value={value} onChange={onChange} placeholder={placeholder} autoCapitalize="words" accessibilityLabel={label} />
+      <InputBox
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        autoCapitalize="words"
+        selectOnFocus={selectOnFocus}
+        accessibilityLabel={label}
+      />
     </Field>
   );
 }
 
-type NumberKind = "dollars" | "percent" | "signedPercent" | "years" | "months" | "whole" | "decimal" | "positive" | "number";
+type NumberKind =
+  "dollars" | "percent" | "signedPercent" | "returnPercent" | "years" | "months" | "whole" | "decimal" | "positive" | "number";
 
 /** How each kind of number box checks its text, what it says when the text is wrong, and what it shows around it. */
 const NUMBER_KINDS: Record<NumberKind, { parse: (text: string) => number | null; error: string; prefix?: string; suffix?: string }> = {
   dollars: { parse: parseDollars, error: ERRORS.dollars, prefix: "$" },
   percent: { parse: parsePercent, error: ERRORS.percent, suffix: "%" },
   signedPercent: { parse: parseSignedPercent, error: ERRORS.signedPercent, suffix: "%" }, // may be negative
+  // A yearly return. Checked like signedPercent, but typed on the number pad, which has no minus key (the user's call):
+  // a negative return can't be typed here, though a saved one still shows and saves.
+  returnPercent: { parse: parseSignedPercent, error: ERRORS.signedPercent, suffix: "%" },
   years: { parse: parseWholeFrom1, error: ERRORS.years, suffix: "yrs" },
   months: { parse: parseWholeFrom1, error: ERRORS.months, suffix: "mos" },
   whole: { parse: parseWholeFrom1, error: ERRORS.whole },
@@ -143,9 +191,22 @@ type NumberFieldProps = {
   suffix?: string; // replaces the kind's own
   /** Replaces the box's own error (it checks its text by kind once something is typed). */
   error?: string | null;
+  /** Adds an "i" button beside the label that opens this spending guide. */
+  guide?: CostGuide;
 };
 
-export function NumberField({ label, value, onChange, kind = "number", hint, placeholder = "0", prefix, suffix, error }: NumberFieldProps) {
+export function NumberField({
+  label,
+  value,
+  onChange,
+  kind = "number",
+  hint,
+  placeholder = "0",
+  prefix,
+  suffix,
+  error,
+  guide,
+}: NumberFieldProps) {
   const rules = NUMBER_KINDS[kind];
   const shownError = error !== undefined ? error : fieldError(value, rules.parse(value), rules.error);
   const wholeOnly = kind === "dollars" || kind === "years" || kind === "months" || kind === "whole" || kind === "number";
@@ -155,7 +216,7 @@ export function NumberField({ label, value, onChange, kind = "number", hint, pla
     if (n !== null) onChange(formatDollars(n));
   }
   return (
-    <Field label={label} hint={hint} error={shownError}>
+    <Field label={label} hint={hint} error={shownError} guide={guide}>
       <InputBox
         value={value}
         onChange={onChange}
@@ -327,11 +388,12 @@ function Dropdown({
   }
 
   function openList() {
-    // The keyboard moves the form when it closes, so close it first and measure the box where it lands.
+    // The keyboard moves the form when it closes, so close it first and measure the box where it lands
+    // (a moment after the keyboard is gone, so the popup has finished sliding back down).
     if (Keyboard.isVisible()) {
       const sub = Keyboard.addListener("keyboardDidHide", () => {
         sub.remove();
-        measureAndOpen();
+        setTimeout(measureAndOpen, SETTLE_AFTER_KEYBOARD_MS);
       });
       Keyboard.dismiss();
     } else {

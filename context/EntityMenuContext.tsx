@@ -15,7 +15,7 @@ type EntityMenu = {
 const EntityMenuContext = createContext<EntityMenu | null>(null);
 
 export function EntityMenuProvider({ children }: { children: ReactNode }) {
-  const [groupKey, setGroupKey] = useState("existingHome");
+  const [groupKey, setGroupKey] = useState("income"); // the top of the entity types menu
   const [menuOpen, setMenuOpen] = useState(false);
   return <EntityMenuContext.Provider value={{ groupKey, setGroupKey, menuOpen, setMenuOpen }}>{children}</EntityMenuContext.Provider>;
 }

@@ -41,12 +41,13 @@ export function EmptyState({ icon, title, message, action }: EmptyStateProps) {
 }
 
 export const FLOATING_ROW_TOP = 12; // gap between the top bar and the floating row
-export const FLOATING_ROW_HEIGHT = 44; // the plus is a 44 square, and the bar beside it is the same height
+/**
+ * The bar's height, the same on all three screens; the plus beside it is a square of the same size.
+ * It was 44 on Cases and Entities; the user had it made about 25% taller, to match Outcomes, so the bars are hard to miss.
+ */
+export const FLOATING_ROW_HEIGHT = 54;
 /** Top padding a list needs so its first cards start below the floating row. */
 export const FLOATING_ROW_SPACE = FLOATING_ROW_TOP + FLOATING_ROW_HEIGHT + 12;
-export const PROMINENT_ROW_HEIGHT = 54; // the taller row (Outcomes)
-/** The same, for a prominent floating row. */
-export const PROMINENT_ROW_SPACE = FLOATING_ROW_TOP + PROMINENT_ROW_HEIGHT + 12;
 
 type FloatingRowProps = {
   /** The plus. Leave it out and there is no plus: the bar fills the whole row (Outcomes). */
@@ -56,22 +57,21 @@ type FloatingRowProps = {
   /** Tapping the bar. */
   onPressBar: () => void;
   barLabel: string; // read by screen readers
-  /** A taller bar, for a screen where the bar is the main control (Outcomes). */
-  prominent?: boolean;
   /** What the bar shows: an icon, a name, a value, a chevron. */
   children: ReactNode;
 };
 
 /**
  * The row that floats over the top of a tab screen's list (the cards scroll under it):
- * a green plus on the left, then an outlined bar filling the rest (the starting age on Cases, the entity type on Entities,
- * the outcome on Outcomes, which has no plus and is prominent).
+ * an outlined bar (the starting age on Cases, the entity type on Entities, the outcome on Outcomes, which has no plus),
+ * then a green plus on the right, the side the thumb reaches (the user's call).
  */
-export function FloatingRow({ onAdd, addDisabled, addLabel, onPressBar, barLabel, prominent, children }: FloatingRowProps) {
+export function FloatingRow({ onAdd, addDisabled, addLabel, onPressBar, barLabel, children }: FloatingRowProps) {
   const { colors, lift, scheme } = useTheme();
   // The bar is the same color as the cards that scroll under it, so it gets an outline to stand apart from them.
   // The dark-mode lift is a top border, which would sit on top of that outline, so the bar only lifts in light mode.
-  const barStyle = [scheme === "light" ? lift : null, { borderWidth: 1.5, borderColor: colors.edge }];
+  // In dark mode the outline is as bright as the text, so it's thinner there (the user's call).
+  const barStyle = [scheme === "light" ? lift : null, { borderWidth: scheme === "light" ? 1.5 : 1, borderColor: colors.rowEdge }];
   return (
     <View
       pointerEvents="box-none"
@@ -81,9 +81,18 @@ export function FloatingRow({ onAdd, addDisabled, addLabel, onPressBar, barLabel
         top: FLOATING_ROW_TOP,
         left: 16,
         right: 16,
-        height: prominent ? PROMINENT_ROW_HEIGHT : FLOATING_ROW_HEIGHT,
+        height: FLOATING_ROW_HEIGHT,
       }}
     >
+      <Pressable
+        className="flex-1 flex-row items-center rounded-2xl bg-surface px-3.5 active:opacity-70"
+        style={barStyle}
+        onPress={onPressBar}
+        accessibilityRole="button"
+        accessibilityLabel={barLabel}
+      >
+        {children}
+      </Pressable>
       {onAdd ? (
         <Pressable
           className={`items-center justify-center rounded-2xl bg-green active:opacity-70 ${addDisabled ? "opacity-40" : ""}`}
@@ -95,18 +104,9 @@ export function FloatingRow({ onAdd, addDisabled, addLabel, onPressBar, barLabel
           accessibilityLabel={addLabel}
           accessibilityState={{ disabled: !!addDisabled }}
         >
-          <Ionicons name="add" size={24} color={colors.onAccent} />
+          <Ionicons name="add" size={28} color={colors.onAccent} />
         </Pressable>
       ) : null}
-      <Pressable
-        className="flex-1 flex-row items-center rounded-2xl bg-surface px-3.5 active:opacity-70"
-        style={barStyle}
-        onPress={onPressBar}
-        accessibilityRole="button"
-        accessibilityLabel={barLabel}
-      >
-        {children}
-      </Pressable>
     </View>
   );
 }

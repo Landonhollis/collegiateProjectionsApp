@@ -12,7 +12,7 @@ const PAYMENT_OPTIONS: { value: BuyingHomeText["payment"]; label: string }[] = [
 
 // Edit card for the buyingHome entity type (shown under Housing): a home you'll buy.
 // "Mortgage" shows the down payment, term and rate; "Cash" hides them.
-// Property tax, insurance and upkeep are worked out by the engine. Utilities are yours to set, or blank for the average.
+// Property tax, insurance and upkeep are worked out by the engine. Utilities start filled in with the average; change it (blank also means the average).
 export default function EditBuyingHomeCard(props: EditEntityCardProps) {
   const card = useEntityCard(props, "buyingHome", buyingHomeForm);
   const { text: t, set } = card;
