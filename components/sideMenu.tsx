@@ -172,7 +172,8 @@ export default function SideMenu({ visible, onVisibleChange, selected, onSelect,
           // Closed, the rows are off screen, so screen readers skip them.
           accessibilityElementsHidden={!visible}
           importantForAccessibility={visible ? "auto" : "no-hide-descendants"}
-          className="flex-1 overflow-hidden rounded-[24px] border border-edge bg-surface"
+          // Filled like the page behind it (canvas), not like a card: the user's call.
+          className="flex-1 overflow-hidden rounded-[24px] border border-edge bg-canvas"
           style={{ width }}
         >
           <ScrollView contentContainerClassName="py-3">
@@ -232,7 +233,7 @@ export default function SideMenu({ visible, onVisibleChange, selected, onSelect,
             borderColor: colors.edge,
             borderTopRightRadius: 10,
             borderBottomRightRadius: 10,
-            backgroundColor: colors.surface,
+            backgroundColor: colors.canvas,
             alignItems: "center",
             justifyContent: "center",
           }}

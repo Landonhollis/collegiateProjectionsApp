@@ -79,6 +79,7 @@ Sources: `../../ColorsGuide.md` and `../../FontsGuide.md`. A reference design th
 - **AddOptionsMenu:** a small floating list under the plus (right-aligned with it), for a group with more than one type to add (Housing).
 - **OutcomesDropdown:** a floating list under the Outcomes bar, as wide as the bar. The outcome showing is tinted with a check. Outlined in 1px `edge`; filled `inset` in dark mode so it stands out.
 - **EntityTypesMenu** (a `SideMenu`): a rounded, outlined (1px `edge`) panel on the left, floating over both bars.
+  The panel and its tab are filled `canvas`, the page's own color, not `surface` (the user asked).
   Tried and undone (the user: "also looks off"): filling the panel and its tab in `edge` with no outline. An `edge` fill
   has now been dropped on both the entities bar and this menu, so don't suggest it again.
   - Always on screen. Closed: 8px of its right edge shows, plus a small tab (14×44, arrow) joined to it. Open: an 8px gap to the screen edge, overlapping the top bar and bottom menu by 6px.
