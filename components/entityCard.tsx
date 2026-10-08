@@ -39,8 +39,13 @@ export default function EntityCard(props: EntityCardProps) {
   }
 
   const pad = size * 0.07;
-  // The small lines under the name (type, case, facts). Sized so a 2-line name and all four of them fit above the buttons.
-  const smallText = { fontSize: size * 0.07, lineHeight: size * 0.082 };
+  // The small lines under the name (type, case, facts), with a little air between them (the user's call).
+  // The space above the buttons is 61% of the card's width (100 − 7 − 7 padding − 25 buttons), and these add up to exactly that:
+  //   a 2-line name (2 × 13) + the gap under it (2.5) + four small lines (4 × 7) + three gaps between them (3 × 1.5).
+  // Adding a line, or making anything bigger, means shrinking something else.
+  const smallText = { fontSize: size * 0.063, lineHeight: size * 0.07 };
+  const underName = size * 0.025; // between the name and the type
+  const between = size * 0.015; // between the small lines
   const rowHeight = size * 0.25; // bottom quarter
   const textFade = props.isHidden ? 0.45 : 1; // hidden reads as faded
 
@@ -62,27 +67,38 @@ export default function EntityCard(props: EntityCardProps) {
             <View className="flex-1 overflow-hidden" style={{ opacity: textFade }}>
               <Text
                 className="font-inter-bold tracking-tight text-ink"
-                style={{ fontSize: size * 0.115, lineHeight: size * 0.14 }}
+                style={{ fontSize: size * 0.115, lineHeight: size * 0.13 }}
                 numberOfLines={2} // wraps once, then clips
                 ellipsizeMode="clip"
               >
                 {props.entityName}
               </Text>
-              <Text className="font-inter-semibold text-muted" style={smallText} numberOfLines={1} ellipsizeMode="clip">
+              <Text
+                className="font-inter-semibold text-muted"
+                style={[smallText, { marginTop: underName }]}
+                numberOfLines={1}
+                ellipsizeMode="clip"
+              >
                 {props.entityType}
               </Text>
-              <View className="flex-row items-center" style={{ gap: size * 0.025 }}>
+              <View className="flex-row items-center" style={{ gap: size * 0.025, marginTop: between }}>
                 <Text className="font-inter text-muted" style={smallText}>
                   Case:
                 </Text>
-                <View className="rounded-full" style={{ width: size * 0.06, height: size * 0.06, backgroundColor: props.caseColor }} />
+                <View className="rounded-full" style={{ width: size * 0.055, height: size * 0.055, backgroundColor: props.caseColor }} />
                 <Text className="flex-1 font-inter text-muted" style={smallText} numberOfLines={1} ellipsizeMode="clip">
                   {props.caseName}
                 </Text>
               </View>
               {/* The entity's main values, so it can be told apart without opening it. */}
               {props.facts.map((fact) => (
-                <Text key={fact} className="font-inter-medium text-ink" style={smallText} numberOfLines={1} ellipsizeMode="clip">
+                <Text
+                  key={fact}
+                  className="font-inter-medium text-ink"
+                  style={[smallText, { marginTop: between }]}
+                  numberOfLines={1}
+                  ellipsizeMode="clip"
+                >
                   {fact}
                 </Text>
               ))}

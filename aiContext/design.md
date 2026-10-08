@@ -57,7 +57,7 @@ Sources: `../../ColorsGuide.md` and `../../FontsGuide.md`. A reference design th
 ## Cards
 - **EntityCard:** always square; everything scales with its width.
   - Top: the name (up to 2 lines), the type, "Case:" with the color dot and name, then up to 2 facts in `ink` (the rest is `muted`).
-  - The sizes are tuned so a 2-line name plus four small lines exactly fill the space above the buttons (padding 7%, name 11.5%, small lines 7% of the width). Adding a line means shrinking something.
+  - The sizes are tuned so a 2-line name plus four small lines, with a little air between them (the user asked), exactly fill the space above the buttons. As shares of the width: padding 7%, name 11.5% (line height 13%), small lines 6.3% (line height 7%), 2.5% under the name, 1.5% between the small lines. Adding a line means shrinking something.
   - Bottom quarter: delete / hide / edit wells on the left three-quarters, the grip on the right.
   - Hold the grip → the card lifts 10%, then drag to reorder. Hold anywhere else → its edit popup (light haptic).
 - **Facts** (`entitySummary(type, inputs)`): the entity's main values, so it can be told apart without opening it. One `case` per type; keep each line to about 22 characters. Examples: "$320,000 at age 30" / "30 yr loan at 6.5%"; "$72,000/yr" / "Until age 65". A missing or wrong value drops that fact instead of throwing.
